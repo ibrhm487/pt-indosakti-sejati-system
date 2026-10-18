@@ -24,6 +24,7 @@ type ReturnFormData = {
     stock_request_id: string;
     notes: string;
     items: ReturnItem[];
+    photo: File | null;
 };
 
 const toItems = (request: ReturnableRequest | null): ReturnItem[] =>
@@ -44,6 +45,7 @@ export default function ReturnForm({
         stock_request_id: selectedRequest ? String(selectedRequest.id) : '',
         notes: '',
         items: toItems(selectedRequest),
+        photo: null,
     });
 
     const activeRequest = useMemo(
@@ -65,7 +67,7 @@ export default function ReturnForm({
 
     const submit = (e: FormEvent) => {
         e.preventDefault();
-        post(route('warehouse.returns.store'));
+        post(route('warehouse.returns.store'), { forceFormData: true });
     };
 
     return (
@@ -90,6 +92,14 @@ export default function ReturnForm({
                             </Field>
                             <Field label="Catatan" error={errors.notes}>
                                 <Textarea value={data.notes} onChange={(e) => setData('notes', e.target.value)} />
+                            </Field>
+                            <Field label="Foto Bukti Pengembalian (opsional)" error={errors.photo} className="sm:col-span-2">
+                                <input
+                                    type="file"
+                                    accept="image/jpeg,image/png,image/webp"
+                                    onChange={(e) => setData('photo', e.target.files?.[0] ?? null)}
+                                    className="block w-full cursor-pointer rounded-lg border border-slate-200 bg-white text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-slate-700"
+                                />
                             </Field>
                         </div>
                     </CardContent>

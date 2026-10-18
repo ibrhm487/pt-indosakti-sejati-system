@@ -11,6 +11,7 @@ type ReturnRow = {
     event: string | null;
     status: string;
     recorded_by: string | null;
+    photo_url: string | null;
 };
 
 export default function ReturnsIndex({
@@ -50,6 +51,7 @@ export default function ReturnsIndex({
                                     <TH>Event</TH>
                                     <TH>Status</TH>
                                     <TH>Dicatat Oleh</TH>
+                                    <TH>Foto</TH>
                                 </TR>
                             </THead>
                             <TBody>
@@ -65,6 +67,15 @@ export default function ReturnsIndex({
                                             />
                                         </TD>
                                         <TD>{r.recorded_by ?? '-'}</TD>
+                                        <TD>
+                                            {r.photo_url ? (
+                                                <a href={r.photo_url} target="_blank" rel="noreferrer" className="text-sm font-medium text-blue-600 hover:underline">
+                                                    Lihat Foto
+                                                </a>
+                                            ) : (
+                                                <span className="text-xs text-slate-400">—</span>
+                                            )}
+                                        </TD>
                                     </TR>
                                 ))}
                             </TBody>

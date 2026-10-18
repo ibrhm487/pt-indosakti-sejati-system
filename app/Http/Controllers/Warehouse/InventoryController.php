@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Warehouse;
 
+use App\Enums\StockMovementType;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Models\StockMovement;
@@ -74,7 +75,56 @@ class InventoryController extends Controller
             'movements' => $movements,
             'products' => Product::orderBy('name')->get(['id', 'name', 'sku']),
             'filters' => $request->only('product_id', 'type'),
+            'summary' => $productId ? $this->productSummary($productId) : null,
         ]);
+    }
+
+    /**
+     * Per-product mutation recap (REVISI §4.4.D): opening stock, goods in,
+     * goods out, usable returns, damage, and current balance. Opening stock is
+     * derived from the first movement's recorded balance; null when it cannot
+     * be derived (first movement is an adjustment).
+     */
+    private function productSummary(int $productId): ?array
+    {
+        $product = Product::with('inventory')->find($productId);
+
+        if (! $product) {
+            return null;
+        }
+
+        $movements = StockMovement::query()
+            ->where('product_id', $productId)
+            ->orderBy('id')
+            ->get(['id', 'type', 'quantity', 'balance_after']);
+
+        $opening = null;
+
+        if ($first = $movements->first()) {
+            $opening = match ($first->type) {
+                StockMovementType::STOCK_IN, StockMovementType::RETURN => $first->balance_after - $first->quantity,
+                StockMovementType::STOCK_OUT => $first->balance_after + $first->quantity,
+                StockMovementType::DAMAGE => $first->balance_after,
+                StockMovementType::ADJUSTMENT => null,
+            };
+        }
+
+        $totals = $movements->groupBy(fn (StockMovement $m) => $m->type->value)
+            ->map(fn ($group) => $group->sum('quantity'));
+
+        return [
+            'product' => $product->name,
+            'sku' => $product->sku,
+            'unit' => $product->unit,
+            'opening' => $opening,
+            'stock_in' => $totals->get(StockMovementType::STOCK_IN->value, 0),
+            'stock_out' => $totals->get(StockMovementType::STOCK_OUT->value, 0),
+            'returned' => $totals->get(StockMovementType::RETURN->value, 0),
+            'damaged' => $totals->get(StockMovementType::DAMAGE->value, 0),
+            'adjustments' => $totals->get(StockMovementType::ADJUSTMENT->value, 0),
+            'on_hand' => $product->inventory?->qty_on_hand ?? 0,
+            'available' => $product->availableStock(),
+        ];
     }
 
     public function adjust(Request $request, StockService $stock)

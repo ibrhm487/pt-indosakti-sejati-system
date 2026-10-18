@@ -114,6 +114,7 @@ Route::middleware('auth')->group(function () {
         Route::get('receipts', [StockReceiptController::class, 'index'])->name('receipts.index');
         Route::get('receipts/create', [StockReceiptController::class, 'create'])->middleware('permission:warehouse.manage')->name('receipts.create');
         Route::post('receipts', [StockReceiptController::class, 'store'])->middleware('permission:warehouse.manage')->name('receipts.store');
+        Route::get('receipts/{receipt}/photo', [StockReceiptController::class, 'downloadPhoto'])->name('receipts.photo');
 
         Route::get('mrv', [MrvController::class, 'index'])->name('mrv.index');
         Route::get('mrv/create', [MrvController::class, 'create'])->middleware('permission:warehouse.request')->name('mrv.create');
@@ -122,10 +123,12 @@ Route::middleware('auth')->group(function () {
         Route::post('mrv/{mrv}/approve', [MrvController::class, 'approve'])->middleware('permission:warehouse.approve')->name('mrv.approve');
         Route::post('mrv/{mrv}/reject', [MrvController::class, 'reject'])->middleware('permission:warehouse.approve')->name('mrv.reject');
         Route::post('mrv/{mrv}/issue', [MrvController::class, 'issue'])->middleware('permission:warehouse.issue')->name('mrv.issue');
+        Route::get('mrv/{mrv}/photo', [MrvController::class, 'downloadPhoto'])->name('mrv.photo');
 
         Route::get('returns', [StockReturnController::class, 'index'])->name('returns.index');
         Route::get('returns/create', [StockReturnController::class, 'create'])->middleware('permission:warehouse.return')->name('returns.create');
         Route::post('returns', [StockReturnController::class, 'store'])->middleware('permission:warehouse.return')->name('returns.store');
+        Route::get('returns/{stockReturn}/photo', [StockReturnController::class, 'downloadPhoto'])->name('returns.photo');
     });
 
     // ---------------------------------------------------------------------

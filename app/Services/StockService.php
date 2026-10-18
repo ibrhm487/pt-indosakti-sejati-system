@@ -40,18 +40,25 @@ class StockService
 
     /**
      * Issue stock for an approved MRV. Deduction happens exactly once at the
-     * issuance stage; approving a request never moves stock.
+     * issuance stage; approving a request never moves stock. The MRV row is
+     * locked and its status re-validated inside the transaction so concurrent
+     * issue attempts cannot deduct twice (REVISI P1 #5).
      */
-    public function issue(StockRequest $request): void
+    public function issue(StockRequest $request, ?string $photoPath = null, ?string $recipient = null): void
     {
-        if ($request->status === MrvStatus::ISSUED) {
-            throw new DomainException('MRV ini sudah dikeluarkan; stok tidak boleh dikurangi dua kali.');
-        }
+        DB::transaction(function () use ($request, $photoPath, $recipient) {
+            $locked = StockRequest::query()
+                ->whereKey($request->getKey())
+                ->lockForUpdate()
+                ->first();
 
-        DB::transaction(function () use ($request) {
-            $request->loadMissing('items.product');
+            if (! $locked || $locked->status !== MrvStatus::APPROVED) {
+                throw new DomainException('MRV harus disetujui sebelum dikeluarkan; permintaan ganda ditolak.');
+            }
 
-            foreach ($request->items as $item) {
+            $locked->load('items.product');
+
+            foreach ($locked->items as $item) {
                 $product = $item->product;
                 $inventory = $this->lockInventory($product);
 
@@ -70,30 +77,45 @@ class StockService
                     StockMovementType::STOCK_OUT,
                     $item->quantity_requested,
                     $inventory->qty_on_hand,
-                    ['reference' => $request],
+                    ['reference' => $locked],
                 );
             }
 
-            $request->status = MrvStatus::ISSUED;
-            $request->issued_at = now();
-            $request->save();
+            $locked->status = MrvStatus::ISSUED;
+            $locked->issued_at = now();
+
+            if ($photoPath !== null) {
+                $locked->photo_path = $photoPath;
+            }
+            if ($recipient !== null) {
+                $locked->recipient = $recipient;
+            }
+
+            $locked->save();
         });
     }
 
     /**
      * Process a return. Good units go back to available stock; damaged units
-     * are recorded but never added to usable inventory.
+     * are recorded but never added to usable inventory. The return row is
+     * locked and re-validated inside the transaction so concurrent processing
+     * cannot add stock twice (REVISI P1 #5).
      */
     public function processReturn(StockReturn $return): void
     {
-        if ($return->status === 'processed') {
-            throw new DomainException('Pengembalian ini sudah diproses; stok tidak boleh ditambah dua kali.');
-        }
-
         DB::transaction(function () use ($return) {
-            $return->loadMissing('items.product');
+            $locked = StockReturn::query()
+                ->whereKey($return->getKey())
+                ->lockForUpdate()
+                ->first();
 
-            foreach ($return->items as $item) {
+            if (! $locked || $locked->status === 'processed') {
+                throw new DomainException('Pengembalian ini sudah diproses; stok tidak boleh ditambah dua kali.');
+            }
+
+            $locked->load('items.product');
+
+            foreach ($locked->items as $item) {
                 $product = $item->product;
                 $inventory = $this->lockInventory($product);
 
@@ -106,7 +128,7 @@ class StockService
                         StockMovementType::RETURN,
                         $item->quantity_good,
                         $inventory->qty_on_hand,
-                        ['reference' => $return, 'condition' => 'good'],
+                        ['reference' => $locked, 'condition' => 'good'],
                     );
                 }
 
@@ -116,17 +138,21 @@ class StockService
                         StockMovementType::DAMAGE,
                         $item->quantity_damaged,
                         $inventory->qty_on_hand,
-                        ['reference' => $return, 'condition' => 'damaged'],
+                        ['reference' => $locked, 'condition' => 'damaged'],
                     );
                 }
             }
 
-            $return->status = 'processed';
-            $return->save();
+            $locked->status = 'processed';
+            $locked->save();
 
-            if ($return->stock_request_id) {
-                $request = $return->stockRequest;
-                if ($request) {
+            if ($locked->stock_request_id) {
+                $request = StockRequest::query()
+                    ->whereKey($locked->stock_request_id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($request && $request->status === MrvStatus::ISSUED) {
                     $request->status = MrvStatus::RETURNED;
                     $request->save();
                 }

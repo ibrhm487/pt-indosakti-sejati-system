@@ -11,6 +11,7 @@ use App\Services\StockService;
 use DomainException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -26,6 +27,7 @@ class StockReturnController extends Controller
                 'event' => $r->event?->event_name,
                 'status' => $r->status,
                 'recorded_by' => $r->recorder?->name,
+                'photo_url' => $r->photo_path ? route('warehouse.returns.photo', $r->id) : null,
             ]);
 
         return Inertia::render('Warehouse/Returns/Index', ['returns' => $returns]);
@@ -70,6 +72,7 @@ class StockReturnController extends Controller
             'items.*.product_id' => ['required', 'exists:products,id'],
             'items.*.quantity_good' => ['required', 'integer', 'min:0'],
             'items.*.quantity_damaged' => ['required', 'integer', 'min:0'],
+            'photo' => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:4096'],
         ]);
 
         $stockRequest = StockRequest::with('items.product')->findOrFail($data['stock_request_id']);
@@ -86,14 +89,33 @@ class StockReturnController extends Controller
             return back()->withErrors(['items' => $error]);
         }
 
+        $photoPath = null;
+        if ($request->hasFile('photo')) {
+            $photoPath = $request->file('photo')->store('warehouse/returns');
+        }
+
         try {
-            $return = DB::transaction(function () use ($data, $stockRequest, $request, $stock) {
+            $return = DB::transaction(function () use ($data, $stockRequest, $request, $stock, $photoPath) {
+                $lockedRequest = StockRequest::query()
+                    ->whereKey($stockRequest->id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (! $lockedRequest || $lockedRequest->status !== MrvStatus::ISSUED) {
+                    throw new DomainException('Pengembalian hanya dapat dicatat untuk MRV yang sudah dikeluarkan.');
+                }
+
+                if ($lockedRequest->returns()->exists()) {
+                    throw new DomainException('MRV ini sudah memiliki catatan pengembalian.');
+                }
+
                 $return = StockReturn::create([
                     'return_number' => StockReturn::generateNumber(),
-                    'stock_request_id' => $stockRequest->id,
-                    'event_id' => $stockRequest->event_id,
+                    'stock_request_id' => $lockedRequest->id,
+                    'event_id' => $lockedRequest->event_id,
                     'status' => 'pending',
                     'notes' => $data['notes'] ?? null,
+                    'photo_path' => $photoPath,
                     'recorded_by' => $request->user()->id,
                 ]);
 
@@ -107,7 +129,7 @@ class StockReturnController extends Controller
                         'quantity_damaged' => $damaged,
                     ]);
 
-                    $stockRequest->items()
+                    $lockedRequest->items()
                         ->where('product_id', $item['product_id'])
                         ->update([
                             'quantity_returned' => DB::raw('quantity_returned + '.$good),
@@ -120,12 +142,33 @@ class StockReturnController extends Controller
                 return $return;
             });
         } catch (DomainException $e) {
-            return back()->withErrors(['items' => $e->getMessage()]);
+            if ($photoPath) {
+                Storage::disk('local')->delete($photoPath);
+            }
+
+            return back()->withErrors(['stock_request_id' => $e->getMessage()]);
         }
 
-        AuditLogger::log('RECORD_RETURN', 'warehouse', $return, null, $data);
+        AuditLogger::log('RECORD_RETURN', 'warehouse', $return, null, collect($data)->except('photo')->all());
 
         return redirect()->route('warehouse.returns.index')->with('success', 'Pengembalian diproses. Barang rusak tidak menambah stok.');
+    }
+
+    public function downloadPhoto(StockReturn $stockReturn)
+    {
+        abort_unless(request()->user()->hasPermission('warehouse.view'), 403);
+
+        abort_unless($stockReturn->photo_path, 404);
+
+        if (Storage::disk('local')->exists($stockReturn->photo_path)) {
+            return Storage::disk('local')->response($stockReturn->photo_path);
+        }
+
+        if (Storage::disk('public')->exists($stockReturn->photo_path)) {
+            return Storage::disk('public')->response($stockReturn->photo_path);
+        }
+
+        abort(404);
     }
 
     /**

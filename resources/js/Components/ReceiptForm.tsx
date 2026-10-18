@@ -1,7 +1,7 @@
 import { Button, Card, CardContent, Field, Input, Select, Textarea } from '@/Components/ui';
 import AppLayout from '@/Layouts/AppLayout';
 import { Head, Link, InertiaFormProps, useForm } from '@inertiajs/react';
-import { PackagePlus, StickyNote, Truck } from 'lucide-react';
+import { Camera, PackagePlus, StickyNote, Truck } from 'lucide-react';
 import { FormEvent, ReactNode } from 'react';
 
 export type ReceiptProduct = { id: number; name: string; sku: string; unit: string };
@@ -12,6 +12,7 @@ export type ReceiptFormData = {
     supplier: string;
     received_date: string;
     notes: string;
+    photo: File | null;
 };
 
 export const emptyReceiptForm = (): ReceiptFormData => ({
@@ -20,6 +21,7 @@ export const emptyReceiptForm = (): ReceiptFormData => ({
     supplier: '',
     received_date: new Date().toISOString().slice(0, 10),
     notes: '',
+    photo: null,
 });
 
 function Section({
@@ -100,6 +102,18 @@ export function ReceiptFormFields({
                     />
                 </Field>
             </Section>
+
+            <Section icon={<Camera className="h-3.5 w-3.5" />} title="Foto Bukti">
+                <Field label="Foto Barang Masuk" error={errors.photo}>
+                    <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        onChange={(e) => setData('photo', e.target.files?.[0] ?? null)}
+                        className="block w-full cursor-pointer rounded-lg border border-slate-200 bg-white text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-slate-700"
+                    />
+                </Field>
+                <p className="text-xs text-slate-400">JPG/PNG/WebP, maks. 4 MB. Foto tersimpan privat dan hanya dapat diakses berwenang.</p>
+            </Section>
         </div>
     );
 }
@@ -109,7 +123,7 @@ export default function ReceiptForm({ products }: { products: ReceiptProduct[] }
 
     const submit = (e: FormEvent) => {
         e.preventDefault();
-        form.post(route('warehouse.receipts.store'));
+        form.post(route('warehouse.receipts.store'), { forceFormData: true });
     };
 
     return (

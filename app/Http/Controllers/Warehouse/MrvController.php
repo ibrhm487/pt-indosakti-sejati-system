@@ -13,6 +13,7 @@ use App\Services\StockService;
 use DomainException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -124,6 +125,8 @@ class MrvController extends Controller
                 'status_label' => $mrv->status->label(),
                 'notes' => $mrv->notes,
                 'rejection_reason' => $mrv->rejection_reason,
+                'recipient' => $mrv->recipient,
+                'photo_url' => $mrv->photo_path ? route('warehouse.mrv.photo', $mrv->id) : null,
                 'approved_at' => $mrv->approved_at?->toIso8601String(),
                 'issued_at' => $mrv->issued_at?->toIso8601String(),
             ],
@@ -154,18 +157,23 @@ class MrvController extends Controller
     {
         abort_unless($request->user()->hasPermission('warehouse.approve'), 403);
 
-        if ($mrv->status !== MrvStatus::PENDING) {
+        $old = ['status' => $mrv->status->value];
+
+        $updated = DB::table('stock_requests')
+            ->where('id', $mrv->id)
+            ->where('status', MrvStatus::PENDING->value)
+            ->update([
+                'status' => MrvStatus::APPROVED->value,
+                'approved_by' => $request->user()->id,
+                'approved_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+        if ($updated === 0) {
             return back()->withErrors(['status' => 'Hanya MRV berstatus menunggu yang bisa disetujui.']);
         }
 
-        $old = ['status' => $mrv->status->value];
-        $mrv->update([
-            'status' => MrvStatus::APPROVED,
-            'approved_by' => $request->user()->id,
-            'approved_at' => now(),
-        ]);
-
-        AuditLogger::log('APPROVE_MRV', 'warehouse', $mrv, $old, ['status' => $mrv->status->value]);
+        AuditLogger::log('APPROVE_MRV', 'warehouse', $mrv, $old, ['status' => MrvStatus::APPROVED->value]);
 
         return back()->with('success', 'MRV disetujui. Stok belum dikurangi sampai dikeluarkan.');
     }
@@ -174,13 +182,26 @@ class MrvController extends Controller
     {
         abort_unless($request->user()->hasPermission('warehouse.approve'), 403);
 
+        if ($mrv->status !== MrvStatus::PENDING) {
+            return back()->withErrors(['status' => 'Hanya MRV berstatus menunggu yang bisa ditolak.']);
+        }
+
         $data = $request->validate(['reason' => ['required', 'string', 'min:5', 'max:1000']]);
 
         $old = ['status' => $mrv->status->value];
-        $mrv->update([
-            'status' => MrvStatus::REJECTED,
-            'rejection_reason' => $data['reason'],
-        ]);
+
+        $updated = DB::table('stock_requests')
+            ->where('id', $mrv->id)
+            ->where('status', MrvStatus::PENDING->value)
+            ->update([
+                'status' => MrvStatus::REJECTED->value,
+                'rejection_reason' => $data['reason'],
+                'updated_at' => now(),
+            ]);
+
+        if ($updated === 0) {
+            return back()->withErrors(['status' => 'Hanya MRV berstatus menunggu yang bisa ditolak.']);
+        }
 
         AuditLogger::log('REJECT_MRV', 'warehouse', $mrv, $old, ['status' => 'rejected', 'reason' => $data['reason']]);
 
@@ -191,18 +212,55 @@ class MrvController extends Controller
     {
         abort_unless($request->user()->hasPermission('warehouse.issue'), 403);
 
+        $data = $request->validate([
+            'recipient' => ['nullable', 'string', 'max:255'],
+            'photo' => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:4096'],
+        ]);
+
         if ($mrv->status !== MrvStatus::APPROVED) {
             return back()->withErrors(['status' => 'MRV harus disetujui sebelum dikeluarkan.']);
         }
 
+        $photoPath = null;
+        if ($request->hasFile('photo')) {
+            $photoPath = $request->file('photo')->store('warehouse/issue');
+        }
+
         try {
-            $stock->issue($mrv);
+            $stock->issue($mrv, $photoPath, $data['recipient'] ?? null);
         } catch (DomainException $e) {
+            if ($photoPath) {
+                Storage::disk('local')->delete($photoPath);
+            }
+
             return back()->withErrors(['stock' => $e->getMessage()]);
         }
 
-        AuditLogger::log('ISSUE_MRV', 'warehouse', $mrv, null, ['status' => 'issued']);
+        AuditLogger::log('ISSUE_MRV', 'warehouse', $mrv, null, [
+            'status' => 'issued',
+            'recipient' => $data['recipient'] ?? null,
+            'photo' => $photoPath,
+        ]);
 
         return back()->with('success', 'Stok dikeluarkan. Pengurangan stok terjadi tepat satu kali.');
+    }
+
+    public function downloadPhoto(StockRequest $mrv)
+    {
+        $user = request()->user();
+
+        abort_unless($user->hasPermission('warehouse.view'), 403);
+
+        abort_unless($mrv->photo_path, 404);
+
+        if (Storage::disk('local')->exists($mrv->photo_path)) {
+            return Storage::disk('local')->response($mrv->photo_path);
+        }
+
+        if (Storage::disk('public')->exists($mrv->photo_path)) {
+            return Storage::disk('public')->response($mrv->photo_path);
+        }
+
+        abort(404);
     }
 }

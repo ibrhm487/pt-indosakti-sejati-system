@@ -1,8 +1,8 @@
-import { ConfirmButton, PageHeader } from '@/Components/AppBits';
+import { PageHeader } from '@/Components/AppBits';
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Field, Input, Modal, StatusBadge, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
 import AppLayout from '@/Layouts/AppLayout';
 import { formatDateTime, formatNumber } from '@/lib/utils';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import { FormEvent, useState } from 'react';
 
 type MrvItem = {
@@ -33,6 +33,8 @@ export default function MrvShow({
         status_label: string;
         notes: string | null;
         rejection_reason: string | null;
+        recipient: string | null;
+        photo_url: string | null;
         approved_at: string | null;
         issued_at: string | null;
     };
@@ -42,10 +44,23 @@ export default function MrvShow({
 }) {
     const [rejecting, setRejecting] = useState(false);
     const [reason, setReason] = useState('');
+    const [issuing, setIssuing] = useState(false);
+
+    const issueForm = useForm<{ recipient: string; photo: File | null }>({ recipient: '', photo: null });
 
     const approve = () => router.post(route('warehouse.mrv.approve', mrv.id), {}, { preserveScroll: true });
 
-    const issue = () => router.post(route('warehouse.mrv.issue', mrv.id), {}, { preserveScroll: true });
+    const submitIssue = (e: FormEvent) => {
+        e.preventDefault();
+        issueForm.post(route('warehouse.mrv.issue', mrv.id), {
+            forceFormData: true,
+            preserveScroll: true,
+            onSuccess: () => {
+                setIssuing(false);
+                issueForm.reset();
+            },
+        });
+    };
 
     const submitReject = (e: FormEvent) => {
         e.preventDefault();
@@ -80,14 +95,9 @@ export default function MrvShow({
                     </>
                 )}
                 {can.issue && mrv.status === 'approved' && (
-                    <ConfirmButton
-                        variant="primary"
-                        title="Keluarkan stok"
-                        description="Stok akan dikurangi tepat satu kali saat dikeluarkan."
-                        onConfirm={issue}
-                    >
+                    <Button variant="primary" onClick={() => setIssuing(true)}>
                         Keluarkan Stok
-                    </ConfirmButton>
+                    </Button>
                 )}
                 {can.return && mrv.status === 'issued' && (
                     <Link href={route('warehouse.returns.create', { stock_request_id: mrv.id })}>
@@ -157,6 +167,20 @@ export default function MrvShow({
                             <span className="text-slate-500">Dikeluarkan</span>
                             <span>{formatDateTime(mrv.issued_at)}</span>
                         </div>
+                        {mrv.recipient && (
+                            <div className="flex items-center justify-between">
+                                <span className="text-slate-500">Penerima</span>
+                                <span>{mrv.recipient}</span>
+                            </div>
+                        )}
+                        {mrv.photo_url && (
+                            <div className="flex items-center justify-between">
+                                <span className="text-slate-500">Foto Bukti Keluar</span>
+                                <a href={mrv.photo_url} target="_blank" rel="noreferrer" className="text-sm font-medium text-blue-600 hover:underline">
+                                    Lihat Foto
+                                </a>
+                            </div>
+                        )}
                         {mrv.notes && (
                             <div>
                                 <p className="text-slate-500">Catatan</p>
@@ -205,6 +229,43 @@ export default function MrvShow({
                     <Field label="Alasan penolakan">
                         <Input value={reason} onChange={(e) => setReason(e.target.value)} />
                     </Field>
+                </form>
+            </Modal>
+
+            <Modal
+                open={issuing}
+                onClose={() => setIssuing(false)}
+                title="Keluarkan Stok"
+                description="Stok akan dikurangi tepat satu kali. Sertakan foto bukti barang keluar bila tersedia."
+                footer={
+                    <>
+                        <Button type="button" variant="outline" size="sm" onClick={() => setIssuing(false)}>
+                            Batal
+                        </Button>
+                        <Button type="submit" form="issue-form" variant="primary" size="sm" disabled={issueForm.processing}>
+                            {issueForm.processing ? 'Memproses…' : 'Keluarkan Stok'}
+                        </Button>
+                    </>
+                }
+            >
+                <form id="issue-form" onSubmit={submitIssue}>
+                    <div className="space-y-4">
+                        <Field label="Penerima (opsional)" error={issueForm.errors.recipient}>
+                            <Input
+                                value={issueForm.data.recipient}
+                                onChange={(e) => issueForm.setData('recipient', e.target.value)}
+                                placeholder="Nama penerima barang"
+                            />
+                        </Field>
+                        <Field label="Foto Bukti Barang Keluar (opsional)" error={issueForm.errors.photo}>
+                            <input
+                                type="file"
+                                accept="image/jpeg,image/png,image/webp"
+                                onChange={(e) => issueForm.setData('photo', e.target.files?.[0] ?? null)}
+                                className="block w-full cursor-pointer rounded-lg border border-slate-200 bg-white text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-slate-700"
+                            />
+                        </Field>
+                    </div>
                 </form>
             </Modal>
         </AppLayout>

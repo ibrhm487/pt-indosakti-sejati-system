@@ -11,6 +11,7 @@ use Illuminate\Support\Str;
 
 #[Fillable([
     'mrv_number', 'event_id', 'type', 'status', 'notes', 'rejection_reason',
+    'photo_path', 'recipient',
     'requested_by', 'approved_by', 'approved_at', 'issued_at',
 ])]
 class StockRequest extends Model

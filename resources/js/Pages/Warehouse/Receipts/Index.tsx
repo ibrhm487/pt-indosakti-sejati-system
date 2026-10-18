@@ -21,6 +21,7 @@ type ReceiptRow = {
     supplier: string | null;
     received_date: string | null;
     recorded_by: string | null;
+    photo_url: string | null;
 };
 
 export default function ReceiptsIndex({
@@ -50,7 +51,7 @@ export default function ReceiptsIndex({
 
     const submit = (e: FormEvent) => {
         e.preventDefault();
-        form.post(route('warehouse.receipts.store'), { onSuccess: closeForm });
+        form.post(route('warehouse.receipts.store'), { forceFormData: true, onSuccess: closeForm });
     };
 
     return (
@@ -78,6 +79,7 @@ export default function ReceiptsIndex({
                                     <TH>Supplier</TH>
                                     <TH>Tanggal Terima</TH>
                                     <TH>Dicatat Oleh</TH>
+                                    <TH>Foto</TH>
                                 </TR>
                             </THead>
                             <TBody>
@@ -92,6 +94,15 @@ export default function ReceiptsIndex({
                                         <TD>{r.supplier ?? '-'}</TD>
                                         <TD>{formatDate(r.received_date)}</TD>
                                         <TD>{r.recorded_by ?? '-'}</TD>
+                                        <TD>
+                                            {r.photo_url ? (
+                                                <a href={r.photo_url} target="_blank" rel="noreferrer" className="text-sm font-medium text-blue-600 hover:underline">
+                                                    Lihat Foto
+                                                </a>
+                                            ) : (
+                                                <span className="text-xs text-slate-400">—</span>
+                                            )}
+                                        </TD>
                                     </TR>
                                 ))}
                             </TBody>
