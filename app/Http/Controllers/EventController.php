@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\EventStatus;
 use App\Enums\PermitStatus;
+use App\Enums\ReportStatus;
 use App\Models\Attendance;
 use App\Models\AuditLog;
 use App\Models\Brand;
@@ -51,6 +52,14 @@ class EventController extends Controller
             $query->where('status', $status);
         }
 
+        if ($brandId = $request->integer('brand_id')) {
+            $query->where('brand_id', $brandId);
+        }
+
+        if ($venueId = $request->integer('venue_id')) {
+            $query->where('venue_id', $venueId);
+        }
+
         $base = clone $query;
 
         $events = $query->latest('event_date')->paginate(15)->withQueryString()->through(fn (Event $event) => [
@@ -87,7 +96,7 @@ class EventController extends Controller
             'events' => $events,
             'calendarEvents' => $calendarEvents,
             'month' => $month->format('Y-m'),
-            'filters' => $request->only('search', 'status'),
+            'filters' => $request->only('search', 'status', 'brand_id', 'venue_id'),
             'statuses' => collect(EventStatus::cases())->map(fn ($s) => ['value' => $s->value, 'label' => $s->label()]),
             'canCreate' => $user->hasPermission('events.create'),
             ...$this->formOptions(),
@@ -375,6 +384,7 @@ class EventController extends Controller
                 'verified_by' => $r->verifier?->name,
                 'verified_at' => $r->verified_at?->toIso8601String(),
             ])->values(),
+            'summary' => $this->targetRealisasiSummary($event),
             'quickReports' => $canViewQuick ? $event->quickReports->map(fn (QuickReport $q) => [
                 'id' => $q->id,
                 'title' => $q->title,
@@ -468,6 +478,39 @@ class EventController extends Controller
                 'created_at' => $log->created_at?->toIso8601String(),
             ])
             ->values();
+    }
+
+    /**
+     * Event-level sampling target vs. realisasi from verified reports.
+     * "has_data" is false until at least one verified report exists so the UI
+     * can show "Belum ada data" instead of a misleading zero.
+     *
+     * @return array{target: int|null, realisasi: int|null, achievement: float|null, has_data: bool}
+     */
+    private function targetRealisasiSummary(Event $event): array
+    {
+        $verified = $event->reports->filter(
+            fn (EventReport $r) => $r->status === ReportStatus::VERIFIED && $r->actual_sampling !== null
+        );
+
+        if ($verified->isEmpty()) {
+            return [
+                'target' => $event->sampling_target,
+                'realisasi' => null,
+                'achievement' => null,
+                'has_data' => false,
+            ];
+        }
+
+        $target = (int) $verified->sum('sampling_target');
+        $realisasi = (int) $verified->sum('actual_sampling');
+
+        return [
+            'target' => $target,
+            'realisasi' => $realisasi,
+            'achievement' => $target > 0 ? round(($realisasi / $target) * 100, 2) : 0.0,
+            'has_data' => true,
+        ];
     }
 
     public function updateStatus(Request $request, Event $event)
@@ -580,6 +623,15 @@ class EventController extends Controller
             'personnel_id' => ['nullable', 'required_without:user_id', 'exists:personnel,id'],
             'position' => ['required', 'string', 'max:50'],
         ]);
+
+        $duplicate = $event->teamMembers()->where(function ($q) use ($data) {
+            $q->when($data['user_id'] ?? null, fn ($qq) => $qq->where('user_id', $data['user_id']))
+                ->when($data['personnel_id'] ?? null, fn ($qq) => $qq->orWhere('personnel_id', $data['personnel_id']));
+        })->first();
+
+        if ($duplicate) {
+            return back()->withErrors(['user_id' => 'Anggota tim tersebut sudah ditugaskan di event ini.']);
+        }
 
         $data['event_id'] = $event->id;
         $data['assigned_by'] = $request->user()->id;

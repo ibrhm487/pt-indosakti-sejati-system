@@ -1,7 +1,7 @@
 import { CardTable, FilterCard, PageHeader } from '@/Components/AppBits';
 import { Badge, Field, Select, StatCard, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
 import AppLayout from '@/Layouts/AppLayout';
-import { formatCurrency, formatDateTime } from '@/lib/utils';
+import { formatCurrency, formatDate, formatDateTime, formatNumber } from '@/lib/utils';
 import { Head, router } from '@inertiajs/react';
 import { FormEvent } from 'react';
 
@@ -15,7 +15,13 @@ export default function AttendancePayroll({
     event: { id: number; event_name: string } | null;
     events: any[];
     rows: any[];
-    summary: { rate: number; eligible_shifts: number; total: number; incomplete: number };
+    summary: {
+        rate: number;
+        eligible_shifts: number;
+        total: number;
+        incomplete: number;
+        by_user: { user_id: number | string; user: string; eligible_shifts: number; total: number }[];
+    };
     filters: { event_id?: number | null };
 }) {
     const changeEvent = (e: FormEvent<HTMLSelectElement>) => {
@@ -48,6 +54,32 @@ export default function AttendancePayroll({
                 <StatCard label="Belum Lengkap" value={summary.incomplete} tone={summary.incomplete > 0 ? 'warning' : 'default'} />
             </div>
 
+            {summary.by_user.length > 0 && (
+                <div className="mb-6">
+                    <CardTable>
+                        <p className="px-4 pt-4 text-sm font-semibold text-slate-700">Rekap Per Orang</p>
+                        <Table>
+                            <THead>
+                                <TR>
+                                    <TH>Nama</TH>
+                                    <TH className="text-right">Shift Layak</TH>
+                                    <TH className="text-right">Total</TH>
+                                </TR>
+                            </THead>
+                            <TBody>
+                                {summary.by_user.map((u) => (
+                                    <TR key={u.user_id}>
+                                        <TD>{u.user}</TD>
+                                        <TD className="text-right">{u.eligible_shifts}</TD>
+                                        <TD className="text-right">{formatCurrency(u.total)}</TD>
+                                    </TR>
+                                ))}
+                            </TBody>
+                        </Table>
+                    </CardTable>
+                </div>
+            )}
+
             <CardTable>
                 {rows.length === 0 ? (
                     <p className="p-6 text-sm text-slate-400">Belum ada data absensi.</p>
@@ -55,9 +87,12 @@ export default function AttendancePayroll({
                     <Table>
                         <THead>
                             <TR>
-                                <TH>User</TH>
+                                <TH>Nama</TH>
+                                <TH>Event</TH>
+                                <TH>Tanggal</TH>
                                 <TH>Check In</TH>
                                 <TH>Check Out</TH>
+                                <TH className="text-right">Durasi (menit)</TH>
                                 <TH>Status</TH>
                                 <TH>Layak Bayar</TH>
                             </TR>
@@ -66,8 +101,13 @@ export default function AttendancePayroll({
                             {rows.map((r: any) => (
                                 <TR key={r.id}>
                                     <TD>{r.user}</TD>
+                                    <TD>{r.event ?? '-'}</TD>
+                                    <TD>{formatDate(r.event_date)}</TD>
                                     <TD>{formatDateTime(r.check_in_at)}</TD>
                                     <TD>{formatDateTime(r.check_out_at)}</TD>
+                                    <TD className="text-right">
+                                        {r.duration_minutes != null ? formatNumber(r.duration_minutes) : '-'}
+                                    </TD>
                                     <TD>{r.status}</TD>
                                     <TD>
                                         {r.qualifies ? (

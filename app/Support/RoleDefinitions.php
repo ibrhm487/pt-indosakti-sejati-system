@@ -36,7 +36,7 @@ class RoleDefinitions
                     'events.assign_team', 'fjp.view', 'permits.view',
                     'warehouse.view', 'warehouse.request', 'kitchen.view',
                     'reports.view', 'reports.create', 'quick_reports.view',
-                    'attendance.view', 'attendance.payroll',
+                    'attendance.view', 'attendance.create', 'attendance.manage', 'attendance.payroll',
                 ],
             ],
             RoleSlug::TEAM->value => [

@@ -170,6 +170,7 @@ Route::middleware('auth')->group(function () {
     Route::post('attendance/{attendance}/check-in', [AttendanceController::class, 'checkIn'])->middleware('permission:attendance.create')->name('attendance.check-in');
     Route::post('attendance/{attendance}/check-out', [AttendanceController::class, 'checkOut'])->middleware('permission:attendance.create')->name('attendance.check-out');
     Route::post('attendance/{attendance}/invalidate', [AttendanceController::class, 'invalidate'])->middleware('permission:attendance.manage')->name('attendance.invalidate');
+    Route::patch('attendance/{attendance}/correct', [AttendanceController::class, 'correct'])->middleware('permission:attendance.manage')->name('attendance.correct');
 
     // ---------------------------------------------------------------------
     // Team

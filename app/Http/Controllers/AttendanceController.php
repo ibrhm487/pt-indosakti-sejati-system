@@ -7,6 +7,7 @@ use App\Models\Event;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\PayrollService;
+use App\Support\EventAccess;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -22,7 +23,7 @@ class AttendanceController extends Controller
 
         if ($user->activeRoleSlug() === 'team' && ! $canManage) {
             $query->where('user_id', $user->id);
-        } elseif ($user->activeRoleSlug() === 'pic' && ! $canManage) {
+        } elseif (! $user->isSystemAdmin()) {
             $query->whereIn('event_id', $this->visibleEvents($user)->select('id'));
         }
 
@@ -42,6 +43,7 @@ class AttendanceController extends Controller
             'user_id' => $a->user_id,
             'check_in_at' => $a->check_in_at?->toIso8601String(),
             'check_out_at' => $a->check_out_at?->toIso8601String(),
+            'duration_minutes' => $a->durationMinutes(),
             'status' => $a->status,
             'is_complete' => $a->isComplete(),
         ]);
@@ -101,6 +103,10 @@ class AttendanceController extends Controller
             return back()->with('error', 'Sudah check-in.');
         }
 
+        if ($attendance->event?->event_date?->isFuture()) {
+            return back()->with('error', 'Check-in hanya dapat dilakukan pada hari pelaksanaan event.');
+        }
+
         $old = ['check_in_at' => null];
         $attendance->update(['check_in_at' => now(), 'status' => 'in_progress']);
 
@@ -130,7 +136,7 @@ class AttendanceController extends Controller
 
     public function invalidate(Request $request, Attendance $attendance)
     {
-        abort_unless($request->user()->hasPermission('attendance.manage'), 403);
+        $this->authorizeManage($request, $attendance);
 
         $data = $request->validate(['correction_note' => ['required', 'string', 'min:5', 'max:1000']]);
 
@@ -142,6 +148,51 @@ class AttendanceController extends Controller
         return back()->with('success', 'Absensi ditandai tidak valid (tidak dihitung untuk payroll).');
     }
 
+    public function correct(Request $request, Attendance $attendance)
+    {
+        $this->authorizeManage($request, $attendance);
+
+        $data = $request->validate([
+            'check_in_at' => ['nullable', 'date'],
+            'check_out_at' => ['nullable', 'date'],
+            'correction_note' => ['required', 'string', 'min:5', 'max:1000'],
+        ], [
+            'check_out_at.date' => 'Format waktu check-out tidak valid.',
+        ]);
+
+        if ($data['check_in_at'] && $data['check_out_at'] && strtotime($data['check_out_at']) <= strtotime($data['check_in_at'])) {
+            return back()->withErrors(['check_out_at' => 'Check-out harus setelah check-in.']);
+        }
+
+        $old = [
+            'check_in_at' => $attendance->check_in_at?->toIso8601String(),
+            'check_out_at' => $attendance->check_out_at?->toIso8601String(),
+            'status' => $attendance->status,
+        ];
+
+        $status = match (true) {
+            ($data['check_in_at'] ?? null) !== null && ($data['check_out_at'] ?? null) !== null => 'completed',
+            ($data['check_in_at'] ?? null) !== null => 'in_progress',
+            default => 'planned',
+        };
+
+        $attendance->update([
+            'check_in_at' => $data['check_in_at'] ?? null,
+            'check_out_at' => $data['check_out_at'] ?? null,
+            'status' => $status,
+            'correction_note' => $data['correction_note'],
+        ]);
+
+        AuditLogger::log('CORRECT_ATTENDANCE', 'attendance', $attendance, $old, [
+            'check_in_at' => $attendance->check_in_at?->toIso8601String(),
+            'check_out_at' => $attendance->check_out_at?->toIso8601String(),
+            'status' => $status,
+            'correction_note' => $data['correction_note'],
+        ]);
+
+        return back()->with('success', 'Waktu absensi dikoreksi.');
+    }
+
     public function payroll(Request $request, PayrollService $payroll): Response
     {
         $user = $request->user();
@@ -149,7 +200,7 @@ class AttendanceController extends Controller
         $event = $eventId ? Event::find($eventId) : null;
 
         $attendances = Attendance::query()
-            ->with('user:id,name')
+            ->with(['user:id,name', 'event:id,event_name,event_date'])
             ->when($eventId, fn (Builder $q) => $q->where('event_id', $eventId))
             ->when(! $user->isSystemAdmin(), fn (Builder $q) => $q->whereIn('event_id', $this->visibleEvents($user)->select('id')))
             ->get();
@@ -162,8 +213,11 @@ class AttendanceController extends Controller
             'rows' => $attendances->map(fn (Attendance $a) => [
                 'id' => $a->id,
                 'user' => $a->user?->name,
+                'event' => $a->event?->event_name,
+                'event_date' => $a->event?->event_date?->toDateString(),
                 'check_in_at' => $a->check_in_at?->toIso8601String(),
                 'check_out_at' => $a->check_out_at?->toIso8601String(),
+                'duration_minutes' => $a->durationMinutes(),
                 'status' => $a->status,
                 'qualifies' => $a->qualifiesForPay(),
             ]),
@@ -196,10 +250,23 @@ class AttendanceController extends Controller
     {
         $user = $request->user();
 
-        if ($user->hasPermission('attendance.manage') || $attendance->user_id === $user->id) {
+        if ($attendance->user_id === $user->id) {
             return;
         }
 
-        abort(403);
+        abort_unless(
+            $user->hasPermission('attendance.manage') && EventAccess::allows($user, $attendance->event),
+            403,
+        );
+    }
+
+    private function authorizeManage(Request $request, Attendance $attendance): void
+    {
+        $user = $request->user();
+
+        abort_unless(
+            $user->hasPermission('attendance.manage') && EventAccess::allows($user, $attendance->event),
+            403,
+        );
     }
 }

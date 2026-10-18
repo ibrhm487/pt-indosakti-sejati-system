@@ -37,8 +37,21 @@ class Attendance extends Model
         return $this->check_in_at !== null && $this->check_out_at !== null;
     }
 
+    public function durationMinutes(): ?int
+    {
+        if (! $this->isComplete()) {
+            return null;
+        }
+
+        return (int) round($this->check_in_at->diffInMinutes($this->check_out_at));
+    }
+
     public function qualifiesForPay(): bool
     {
-        return $this->isComplete() && $this->status !== 'invalid';
+        if (! $this->isComplete() || $this->status === 'invalid') {
+            return false;
+        }
+
+        return $this->check_out_at->greaterThan($this->check_in_at);
     }
 }

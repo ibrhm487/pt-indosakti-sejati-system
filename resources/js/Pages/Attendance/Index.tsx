@@ -51,9 +51,15 @@ export default function AttendanceIndex({
     const [status, setStatus] = useState(filters.status ?? '');
     const [createOpen, setCreateOpen] = useState(false);
     const [invalidateId, setInvalidateId] = useState<number | null>(null);
+    const [correctId, setCorrectId] = useState<number | null>(null);
 
     const createForm = useForm<AttendanceData>(EMPTY_ATTENDANCE);
     const invalidateForm = useForm({ correction_note: '' });
+    const correctForm = useForm<{ check_in_at: string; check_out_at: string; correction_note: string }>({
+        check_in_at: '',
+        check_out_at: '',
+        correction_note: '',
+    });
 
     const canActOn = (row: any) =>
         can.manage || row.user_id === currentUser.id;
@@ -97,6 +103,35 @@ export default function AttendanceIndex({
         invalidateForm.reset();
         invalidateForm.clearErrors();
         setInvalidateId(id);
+    };
+
+    const toLocalInput = (iso: string | null | undefined) => {
+        if (!iso) return '';
+        const d = new Date(iso);
+        const pad = (n: number) => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    };
+
+    const openCorrect = (row: any) => {
+        correctForm.setData({
+            check_in_at: toLocalInput(row.check_in_at),
+            check_out_at: toLocalInput(row.check_out_at),
+            correction_note: '',
+        });
+        correctForm.clearErrors();
+        setCorrectId(row.id);
+    };
+
+    const submitCorrect = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!correctId) return;
+        correctForm.patch(route('attendance.correct', correctId), {
+            preserveScroll: true,
+            onSuccess: () => {
+                setCorrectId(null);
+                correctForm.reset();
+            },
+        });
     };
 
     const submitInvalidate = (e: React.FormEvent) => {
@@ -167,6 +202,7 @@ export default function AttendanceIndex({
                                     <TH>Pengguna</TH>
                                     <TH>Check In</TH>
                                     <TH>Check Out</TH>
+                                    <TH className="text-right">Durasi (menit)</TH>
                                     <TH>Status</TH>
                                     <TH>Aksi</TH>
                                 </TR>
@@ -179,6 +215,9 @@ export default function AttendanceIndex({
                                         <TD>{a.user}</TD>
                                         <TD>{formatDateTime(a.check_in_at)}</TD>
                                         <TD>{formatDateTime(a.check_out_at)}</TD>
+                                        <TD className="text-right">
+                                            {a.duration_minutes != null ? a.duration_minutes : '-'}
+                                        </TD>
                                         <TD>
                                             <Badge
                                                 variant={
@@ -207,13 +246,18 @@ export default function AttendanceIndex({
                                                     </Button>
                                                 )}
                                                 {can.manage && (
-                                                    <Button
-                                                        size="sm"
-                                                        variant="destructive"
-                                                        onClick={() => openInvalidate(a.id)}
-                                                    >
-                                                        Invalidate
-                                                    </Button>
+                                                    <>
+                                                        <Button size="sm" variant="outline" onClick={() => openCorrect(a)}>
+                                                            Koreksi
+                                                        </Button>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="destructive"
+                                                            onClick={() => openInvalidate(a.id)}
+                                                        >
+                                                            Invalidate
+                                                        </Button>
+                                                    </>
                                                 )}
                                             </div>
                                         </TD>
@@ -302,6 +346,40 @@ export default function AttendanceIndex({
                         onChange={(e) => invalidateForm.setData('correction_note', e.target.value)}
                     />
                 </Field>
+            </ModalForm>
+
+            <ModalForm
+                open={correctId !== null}
+                onClose={() => setCorrectId(null)}
+                title="Koreksi Waktu Absensi"
+                description="Perubahan waktu dicatat dalam audit trail."
+                onSubmit={submitCorrect}
+                submitLabel={correctForm.processing ? 'Menyimpan…' : 'Simpan Koreksi'}
+                submitDisabled={correctForm.processing}
+                size="sm"
+            >
+                <div className="grid gap-4 sm:grid-cols-2">
+                    <Field label="Check In" error={correctForm.errors.check_in_at}>
+                        <Input
+                            type="datetime-local"
+                            value={correctForm.data.check_in_at}
+                            onChange={(e) => correctForm.setData('check_in_at', e.target.value)}
+                        />
+                    </Field>
+                    <Field label="Check Out" error={correctForm.errors.check_out_at}>
+                        <Input
+                            type="datetime-local"
+                            value={correctForm.data.check_out_at}
+                            onChange={(e) => correctForm.setData('check_out_at', e.target.value)}
+                        />
+                    </Field>
+                    <Field label="Alasan Koreksi" error={correctForm.errors.correction_note} className="sm:col-span-2">
+                        <Input
+                            value={correctForm.data.correction_note}
+                            onChange={(e) => correctForm.setData('correction_note', e.target.value)}
+                        />
+                    </Field>
+                </div>
             </ModalForm>
         </AppLayout>
     );

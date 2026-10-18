@@ -69,6 +69,7 @@ type Option = { value: string; label: string };
 export default function EventsShow({
     event,
     readiness,
+    summary,
     fjp,
     permit,
     team,
@@ -101,6 +102,7 @@ export default function EventsShow({
         pic: string | null;
     };
     readiness: { modules: Record<string, string>; percentage: number };
+    summary: { target: number | null; realisasi: number | null; achievement: number | null; has_data: boolean };
     fjp: any | null;
     permit: any | null;
     team: {
@@ -336,7 +338,7 @@ export default function EventsShow({
             </div>
 
             {tab === 'ringkasan' && (
-                <RingkasanTab event={event} readiness={readiness} />
+                <RingkasanTab event={event} readiness={readiness} summary={summary} />
             )}
 
             {tab === 'fjp' && can.view_fjp && <FjpTab fjp={fjp} permit={permit} />}
@@ -443,9 +445,11 @@ export default function EventsShow({
 function RingkasanTab({
     event,
     readiness,
+    summary,
 }: {
     event: any;
     readiness: { modules: Record<string, string>; percentage: number };
+    summary: { target: number | null; realisasi: number | null; achievement: number | null; has_data: boolean };
 }) {
     return (
         <div className="grid gap-6 lg:grid-cols-3">
@@ -493,6 +497,29 @@ function RingkasanTab({
                             </Badge>
                         </div>
                     ))}
+                </CardContent>
+            </Card>
+
+            <Card className="lg:col-span-3">
+                <CardHeader>
+                    <CardTitle>Target &amp; Realisasi Sampling</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    {!summary.has_data ? (
+                        <EmptyState
+                            title="Belum ada data"
+                            description="Realisasi akan muncul setelah laporan event terverifikasi."
+                        />
+                    ) : (
+                        <dl className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
+                            <Detail label="Target" value={formatNumber(summary.target)} />
+                            <Detail label="Realisasi" value={formatNumber(summary.realisasi)} />
+                            <Detail
+                                label="Capaian"
+                                value={summary.achievement != null ? `${summary.achievement}%` : null}
+                            />
+                        </dl>
+                    )}
                 </CardContent>
             </Card>
         </div>

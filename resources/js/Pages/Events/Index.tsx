@@ -71,7 +71,7 @@ export default function EventsIndex({
     events: any;
     calendarEvents: CalendarEvent[];
     month: string;
-    filters: { search?: string; status?: string };
+    filters: { search?: string; status?: string; brand_id?: number | string; venue_id?: number | string };
     statuses: { value: string; label: string }[];
     canCreate: boolean;
     brands: EventOption[];
@@ -81,6 +81,8 @@ export default function EventsIndex({
 }) {
     const [search, setSearch] = useState(filters.search ?? '');
     const [status, setStatus] = useState(filters.status ?? '');
+    const [brandId, setBrandId] = useState(filters.brand_id ? String(filters.brand_id) : '');
+    const [venueId, setVenueId] = useState(filters.venue_id ? String(filters.venue_id) : '');
     const [view, setView] = useState<View>('list');
     const [createOpen, setCreateOpen] = useState(false);
     const form = useForm<EventFormData>(EMPTY_FORM);
@@ -89,7 +91,7 @@ export default function EventsIndex({
         e.preventDefault();
         router.get(
             route('events.index'),
-            { search, status },
+            { search, status, brand_id: brandId || undefined, venue_id: venueId || undefined },
             { preserveState: true },
         );
     };
@@ -100,7 +102,7 @@ export default function EventsIndex({
         const next = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
         router.get(
             route('events.index'),
-            { search, status, month: next },
+            { search, status, brand_id: brandId || undefined, venue_id: venueId || undefined, month: next },
             { preserveState: true, preserveScroll: true },
         );
     };
@@ -186,6 +188,30 @@ export default function EventsIndex({
                         {statuses.map((s) => (
                             <option key={s.value} value={s.value}>
                                 {s.label}
+                            </option>
+                        ))}
+                    </Select>
+                    <Select
+                        className="sm:w-48"
+                        value={brandId}
+                        onChange={(e) => setBrandId(e.target.value)}
+                    >
+                        <option value="">Semua brand</option>
+                        {brands.map((b) => (
+                            <option key={b.id} value={b.id}>
+                                {b.name}
+                            </option>
+                        ))}
+                    </Select>
+                    <Select
+                        className="sm:w-48"
+                        value={venueId}
+                        onChange={(e) => setVenueId(e.target.value)}
+                    >
+                        <option value="">Semua lokasi</option>
+                        {venues.map((v) => (
+                            <option key={v.id} value={v.id}>
+                                {v.name}
                             </option>
                         ))}
                     </Select>
