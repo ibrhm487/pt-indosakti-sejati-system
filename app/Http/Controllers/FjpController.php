@@ -4,9 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Enums\EventStatus;
 use App\Enums\PermitStatus;
+use App\Models\AuditLog;
+use App\Models\Brand;
 use App\Models\Event;
+use App\Models\EventType;
 use App\Models\Fjp;
 use App\Models\User;
+use App\Models\Venue;
 use App\Services\AuditLogger;
 use App\Services\DapoApiService;
 use Illuminate\Http\Request;
@@ -63,6 +67,14 @@ class FjpController extends Controller
                 'fjp_number' => $fjp->fjp_number,
                 'event_name' => $fjp->event_name,
                 'brand' => $fjp->brand?->name,
+                'brand_id' => $fjp->brand_id,
+                'event_type_id' => $fjp->event_type_id,
+                'venue_id' => $fjp->venue_id,
+                'event_date' => $fjp->event_date?->toDateString(),
+                'start_time' => $fjp->start_time,
+                'end_time' => $fjp->end_time,
+                'sampling_target' => $fjp->sampling_target,
+                'jug_required' => $fjp->jug_required,
                 'school_name' => $fjp->school_name,
                 'npsn' => $fjp->npsn,
                 'address' => $fjp->address,
@@ -93,6 +105,7 @@ class FjpController extends Controller
                 'value' => $value,
                 'label' => $label,
             ])->values(),
+            'formOptions' => $this->formOptions(),
         ]);
     }
 
@@ -125,7 +138,7 @@ class FjpController extends Controller
 
     public function create(): Response
     {
-        return Inertia::render('Fjp/Create');
+        return Inertia::render('Fjp/Create', ['formOptions' => $this->formOptions()]);
     }
 
     public function store(Request $request)
@@ -152,7 +165,9 @@ class FjpController extends Controller
 
     public function show(Fjp $fjp): Response
     {
-        $fjp->load(['attachments', 'events' => fn ($query) => $query->latest()]);
+        $fjp->load(['attachments.uploader:id,name', 'events' => fn ($query) => $query->latest()]);
+
+        $user = request()->user();
 
         return Inertia::render('Fjp/Show', [
             'fjp' => [
@@ -181,8 +196,31 @@ class FjpController extends Controller
                 'id' => $a->id,
                 'category' => $a->category,
                 'original_name' => $a->original_name,
+                'uploaded_at' => $a->created_at?->toIso8601String(),
+                'uploaded_by' => $a->uploader?->name,
                 'url' => route('fjp.attachments.download', $a->id),
             ]),
+            'history' => AuditLog::query()
+                ->where('module', 'fjp')
+                ->where('record_type', $fjp->getMorphClass())
+                ->where('record_id', $fjp->id)
+                ->whereIn('action', [
+                    'CREATE_FJP', 'UPDATE_FJP', 'UPDATE_FJP_INLINE', 'DELETE_FJP',
+                    'FJP_SUBMIT', 'FJP_APPROVE', 'FJP_REJECT', 'FJP_CANCEL',
+                    'SYNC_DAPODIK', 'UPLOAD_FJP_ATTACHMENT',
+                ])
+                ->with('user:id,name')
+                ->latest()
+                ->limit(30)
+                ->get()
+                ->map(fn (AuditLog $log) => [
+                    'id' => $log->id,
+                    'action' => $log->action,
+                    'user' => $log->user?->name,
+                    'role' => $log->role,
+                    'created_at' => $log->created_at?->toIso8601String(),
+                    'reason' => $log->new_values['reason'] ?? null,
+                ]),
             'events' => $fjp->events->map(fn (Event $event) => [
                 'id' => $event->id,
                 'event_code' => $event->event_code,
@@ -196,9 +234,12 @@ class FjpController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'can' => [
-                'update' => request()->user()->hasPermission('fjp.update'),
-                'delete' => request()->user()->hasPermission('fjp.delete'),
-                'create_event' => request()->user()->hasPermission('events.create'),
+                'update' => $user->hasPermission('fjp.update'),
+                'delete' => $user->hasPermission('fjp.delete'),
+                'create_event' => $user->hasPermission('events.create'),
+                'approve' => $user->hasPermission('permits.approve'),
+                'reject' => $user->hasPermission('permits.reject'),
+                'cancel' => $user->hasPermission('permits.update'),
             ],
         ]);
     }
@@ -264,6 +305,7 @@ class FjpController extends Controller
     {
         return Inertia::render('Fjp/Edit', [
             'fjp' => $fjp,
+            'formOptions' => $this->formOptions(),
         ]);
     }
 
@@ -372,7 +414,10 @@ class FjpController extends Controller
     }
 
     /**
-     * Permit workflow transitions for an FJP.
+     * Permit workflow transitions for an FJP. Every action maps to a target
+     * status that must be reachable from the current one (see
+     * PermitStatus::allowedTransitions); invalid jumps — e.g. approving a
+     * draft directly or reviving a cancelled FJP — are rejected.
      */
     public function workflow(Request $request, Fjp $fjp)
     {
@@ -384,17 +429,40 @@ class FjpController extends Controller
         $action = $data['action'];
         $old = ['permit_status' => $fjp->permit_status->value];
 
+        $requiredPermission = match ($action) {
+            'submit' => 'fjp.update',
+            'approve' => 'permits.approve',
+            'reject' => 'permits.reject',
+            'cancel' => 'permits.update',
+        };
+        $this->authorizeFjpAction($request, [$requiredPermission]);
+
+        $newStatus = match ($action) {
+            'submit' => PermitStatus::SUBMITTED,
+            'approve' => PermitStatus::APPROVED,
+            'reject' => PermitStatus::REJECTED,
+            'cancel' => PermitStatus::CANCELLED,
+        };
+
+        if (! $fjp->permit_status->canTransitionTo($newStatus)) {
+            return back()->withErrors([
+                'permit_status' => sprintf(
+                    'Transisi %s → %s tidak diizinkan. Status saat ini: %s.',
+                    $fjp->permit_status->label(),
+                    $newStatus->label(),
+                    $fjp->permit_status->label(),
+                ),
+            ]);
+        }
+
         switch ($action) {
             case 'submit':
-                $this->authorizeFjpAction($request, ['fjp.update']);
                 $fjp->update(['permit_status' => PermitStatus::SUBMITTED, 'status' => 'submitted']);
                 break;
             case 'approve':
-                $this->authorizeFjpAction($request, ['permits.approve']);
                 $fjp->update(['permit_status' => PermitStatus::APPROVED, 'status' => 'approved']);
                 break;
             case 'reject':
-                $this->authorizeFjpAction($request, ['permits.reject']);
                 if (empty($data['reason'])) {
                     return back()->withErrors(['reason' => 'Alasan penolakan wajib diisi.']);
                 }
@@ -405,7 +473,6 @@ class FjpController extends Controller
                 ]);
                 break;
             case 'cancel':
-                $this->authorizeFjpAction($request, ['permits.update']);
                 if (empty($data['reason'])) {
                     return back()->withErrors(['reason' => 'Alasan pembatalan wajib diisi.']);
                 }
@@ -434,6 +501,20 @@ class FjpController extends Controller
         }
 
         abort(403, 'Anda tidak memiliki izin untuk tindakan ini.');
+    }
+
+    /**
+     * Master-data selects shared by the FJP create/edit/index forms.
+     *
+     * @return array{brands: Collection<int, Brand>, eventTypes: Collection<int, EventType>, venues: Collection<int, Venue>}
+     */
+    private function formOptions(): array
+    {
+        return [
+            'brands' => Brand::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'eventTypes' => EventType::orderBy('name')->get(['id', 'name']),
+            'venues' => Venue::orderBy('name')->get(['id', 'name']),
+        ];
     }
 
     /** @return array<string, mixed> */

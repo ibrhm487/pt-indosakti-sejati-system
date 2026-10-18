@@ -3,7 +3,7 @@ import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Field, Input, 
 import AppLayout from '@/Layouts/AppLayout';
 import { formatDate, formatDateTime, formatNumber } from '@/lib/utils';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { CalendarPlus, Download, MapPin, RefreshCw, Upload } from 'lucide-react';
+import { CalendarPlus, Download, History, MapPin, RefreshCw, Upload } from 'lucide-react';
 import { useState } from 'react';
 
 type FjpEvent = {
@@ -16,18 +16,49 @@ type FjpEvent = {
     url: string;
 };
 
+type HistoryEntry = {
+    id: number;
+    action: string;
+    user: string | null;
+    role: string | null;
+    created_at: string | null;
+    reason: string | null;
+};
+
+const HISTORY_LABELS: Record<string, string> = {
+    CREATE_FJP: 'FJP dibuat',
+    UPDATE_FJP: 'FJP diperbarui',
+    UPDATE_FJP_INLINE: 'FJP diperbarui (inline)',
+    DELETE_FJP: 'FJP dihapus',
+    FJP_SUBMIT: 'Diajukan',
+    FJP_APPROVE: 'Disetujui',
+    FJP_REJECT: 'Ditolak',
+    FJP_CANCEL: 'Dibatalkan',
+    SYNC_DAPODIK: 'Sinkronisasi Dapodik',
+    UPLOAD_FJP_ATTACHMENT: 'Lampiran diunggah',
+};
+
 export default function FjpShow({
     fjp,
     attachments,
     events,
+    history,
     pics,
     can,
 }: {
     fjp: any;
     attachments: any[];
     events: FjpEvent[];
+    history: HistoryEntry[];
     pics: { id: number; name: string }[];
-    can: { update: boolean; delete: boolean; create_event: boolean };
+    can: {
+        update: boolean;
+        delete: boolean;
+        create_event: boolean;
+        approve: boolean;
+        reject: boolean;
+        cancel: boolean;
+    };
 }) {
     const [rejectOpen, setRejectOpen] = useState(false);
     const [cancelOpen, setCancelOpen] = useState(false);
@@ -112,11 +143,18 @@ export default function FjpShow({
                         )}
                         {(status === 'submitted' || status === 'pending') && (
                             <>
-                                <Button variant="success" onClick={() => workflow('approve')}>Setujui</Button>
-                                <Button variant="destructive" onClick={() => setRejectOpen(true)}>Tolak</Button>
+                                {can.approve && (
+                                    <Button variant="success" onClick={() => workflow('approve')}>Setujui</Button>
+                                )}
+                                {can.reject && (
+                                    <Button variant="destructive" onClick={() => setRejectOpen(true)}>Tolak</Button>
+                                )}
                             </>
                         )}
-                        {status !== 'cancelled' && status !== 'approved' && (
+                        {(status === 'rejected') && (
+                            <Button variant="primary" onClick={() => workflow('submit')}>Ajukan Ulang</Button>
+                        )}
+                        {can.cancel && status !== 'cancelled' && status !== 'approved' && (
                             <Button variant="outline" onClick={() => setCancelOpen(true)}>Batalkan</Button>
                         )}
                         <Link href={route('fjp.edit', fjp.id)}>
@@ -125,6 +163,12 @@ export default function FjpShow({
                     </>
                 )}
             </PageHeader>
+
+            {pageErrors.permit_status && (
+                <p className="mb-4 rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
+                    {pageErrors.permit_status}
+                </p>
+            )}
 
             <div className="grid gap-6 lg:grid-cols-3">
                 <Card className="lg:col-span-2">
@@ -285,6 +329,8 @@ export default function FjpShow({
                                 <TR>
                                     <TH>Nama</TH>
                                     <TH>Kategori</TH>
+                                    <TH>Tanggal</TH>
+                                    <TH>Pengunggah</TH>
                                     <TH></TH>
                                 </TR>
                             </THead>
@@ -293,6 +339,8 @@ export default function FjpShow({
                                     <TR key={a.id}>
                                         <TD>{a.original_name}</TD>
                                         <TD><Badge variant="outline">{a.category}</Badge></TD>
+                                        <TD>{formatDateTime(a.uploaded_at)}</TD>
+                                        <TD>{a.uploaded_by ?? '-'}</TD>
                                         <TD className="text-right">
                                             <a href={a.url}>
                                                 <Button size="sm" variant="ghost"><Download className="h-4 w-4" /></Button>
@@ -321,6 +369,40 @@ export default function FjpShow({
                                 <Upload className="h-4 w-4" /> Unggah
                             </Button>
                         </form>
+                    )}
+                </CardContent>
+            </Card>
+
+            <Card className="mt-6">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <History className="h-4 w-4" /> Riwayat Perizinan
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    {history.length === 0 ? (
+                        <EmptyState title="Belum ada riwayat" />
+                    ) : (
+                        <ol className="space-y-3">
+                            {history.map((h) => (
+                                <li key={h.id} className="flex items-start justify-between gap-4 rounded-xl bg-slate-50 px-3.5 py-2.5 text-sm">
+                                    <div>
+                                        <p className="font-medium text-slate-800">
+                                            {HISTORY_LABELS[h.action] ?? h.action}
+                                        </p>
+                                        {h.reason && (
+                                            <p className="mt-0.5 text-xs text-slate-500">
+                                                Alasan: {h.reason}
+                                            </p>
+                                        )}
+                                    </div>
+                                    <div className="shrink-0 text-right text-xs text-slate-500">
+                                        <p className="font-medium text-slate-700">{h.user ?? 'Sistem'}</p>
+                                        <p>{formatDateTime(h.created_at)}</p>
+                                    </div>
+                                </li>
+                            ))}
+                        </ol>
                     )}
                 </CardContent>
             </Card>

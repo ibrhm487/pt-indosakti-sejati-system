@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\PermitStatus;
+use App\Models\AuditLog;
 use App\Models\Event;
 use App\Models\PermitRequest;
 use App\Models\User;
@@ -84,7 +85,7 @@ class PermitController extends Controller
 
     public function show(PermitRequest $permit): Response
     {
-        $permit->load(['event:id,event_name', 'venue', 'assignee:id,name', 'documents']);
+        $permit->load(['event:id,event_name', 'venue', 'assignee:id,name', 'documents.uploader:id,name']);
 
         return Inertia::render('Permits/Show', [
             'permit' => [
@@ -105,8 +106,31 @@ class PermitController extends Controller
                 'category' => $d->category,
                 'version' => $d->version,
                 'original_name' => $d->original_name,
+                'uploaded_at' => $d->created_at?->toIso8601String(),
+                'uploaded_by' => $d->uploader?->name,
                 'url' => route('permits.documents.download', $d->id),
             ]),
+            'history' => AuditLog::query()
+                ->where('module', 'permits')
+                ->where('record_type', $permit->getMorphClass())
+                ->where('record_id', $permit->id)
+                ->whereIn('action', [
+                    'CREATE_PERMISSION', 'PERMIT_SUBMIT', 'PERMIT_APPROVE',
+                    'PERMIT_REJECT', 'PERMIT_REVISION', 'PERMIT_CANCEL',
+                    'UPLOAD_PERMIT_DOCUMENT',
+                ])
+                ->with('user:id,name')
+                ->latest()
+                ->limit(30)
+                ->get()
+                ->map(fn (AuditLog $log) => [
+                    'id' => $log->id,
+                    'action' => $log->action,
+                    'user' => $log->user?->name,
+                    'role' => $log->role,
+                    'created_at' => $log->created_at?->toIso8601String(),
+                    'reason' => $log->new_values['reason'] ?? null,
+                ]),
         ]);
     }
 
@@ -168,6 +192,17 @@ class PermitController extends Controller
             'revision' => PermitStatus::PENDING,
             'cancel' => PermitStatus::CANCELLED,
         };
+
+        if (! $permit->status->canTransitionTo($newStatus)) {
+            return back()->withErrors([
+                'status' => sprintf(
+                    'Transisi %s → %s tidak diizinkan. Status saat ini: %s.',
+                    $permit->status->label(),
+                    $newStatus->label(),
+                    $permit->status->label(),
+                ),
+            ]);
+        }
 
         $permit->update([
             'status' => $newStatus,

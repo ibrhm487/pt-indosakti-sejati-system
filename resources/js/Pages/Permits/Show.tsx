@@ -1,17 +1,38 @@
 import { EmptyState, PageHeader } from '@/Components/AppBits';
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Field, Input, Modal, Select, StatusBadge, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
 import AppLayout from '@/Layouts/AppLayout';
-import { formatDate } from '@/lib/utils';
+import { formatDateTime, formatDate } from '@/lib/utils';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
-import { Download, Upload } from 'lucide-react';
+import { Download, History, Upload } from 'lucide-react';
 import { FormEvent, useState } from 'react';
+
+type HistoryEntry = {
+    id: number;
+    action: string;
+    user: string | null;
+    role: string | null;
+    created_at: string | null;
+    reason: string | null;
+};
+
+const HISTORY_LABELS: Record<string, string> = {
+    CREATE_PERMISSION: 'Perizinan dibuat',
+    PERMIT_SUBMIT: 'Diajukan',
+    PERMIT_APPROVE: 'Disetujui',
+    PERMIT_REJECT: 'Ditolak',
+    PERMIT_REVISION: 'Minta revisi',
+    PERMIT_CANCEL: 'Dibatalkan',
+    UPLOAD_PERMIT_DOCUMENT: 'Dokumen diunggah',
+};
 
 export default function PermitsShow({
     permit,
     documents,
+    history,
 }: {
     permit: any;
     documents: any[];
+    history: HistoryEntry[];
 }) {
     const permissions: string[] = usePage().props.auth.permissions;
     const canUpdate = permissions.includes('permits.update');
@@ -58,6 +79,8 @@ export default function PermitsShow({
         cancel: 'Batalkan Perizinan',
     };
 
+    const pageErrors: Record<string, string> = (usePage().props as any).errors ?? {};
+
     return (
         <AppLayout title="Detail Perizinan">
             <Head title={permit.permit_number} />
@@ -78,6 +101,12 @@ export default function PermitsShow({
                     <Button variant="outline" onClick={() => openReasonModal('cancel')}>Batalkan</Button>
                 )}
             </PageHeader>
+
+            {pageErrors.status && (
+                <p className="mb-4 rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
+                    {pageErrors.status}
+                </p>
+            )}
 
             <div className="grid gap-6 lg:grid-cols-3">
                 <Card className="lg:col-span-2">
@@ -118,6 +147,8 @@ export default function PermitsShow({
                                     <TH>Nama</TH>
                                     <TH>Kategori</TH>
                                     <TH>Versi</TH>
+                                    <TH>Tanggal</TH>
+                                    <TH>Pengunggah</TH>
                                     <TH></TH>
                                 </TR>
                             </THead>
@@ -127,6 +158,8 @@ export default function PermitsShow({
                                         <TD>{d.original_name}</TD>
                                         <TD><Badge variant="outline">{d.category}</Badge></TD>
                                         <TD>v{d.version}</TD>
+                                        <TD>{formatDateTime(d.uploaded_at)}</TD>
+                                        <TD>{d.uploaded_by ?? '-'}</TD>
                                         <TD className="text-right">
                                             <a href={d.url}>
                                                 <Button size="sm" variant="ghost"><Download className="h-4 w-4" /></Button>
@@ -155,6 +188,40 @@ export default function PermitsShow({
                                 <Upload className="h-4 w-4" /> Unggah
                             </Button>
                         </form>
+                    )}
+                </CardContent>
+            </Card>
+
+            <Card className="mt-6">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <History className="h-4 w-4" /> Riwayat Perizinan
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    {history.length === 0 ? (
+                        <EmptyState title="Belum ada riwayat" />
+                    ) : (
+                        <ol className="space-y-3">
+                            {history.map((h) => (
+                                <li key={h.id} className="flex items-start justify-between gap-4 rounded-xl bg-slate-50 px-3.5 py-2.5 text-sm">
+                                    <div>
+                                        <p className="font-medium text-slate-800">
+                                            {HISTORY_LABELS[h.action] ?? h.action}
+                                        </p>
+                                        {h.reason && (
+                                            <p className="mt-0.5 text-xs text-slate-500">
+                                                Alasan: {h.reason}
+                                            </p>
+                                        )}
+                                    </div>
+                                    <div className="shrink-0 text-right text-xs text-slate-500">
+                                        <p className="font-medium text-slate-700">{h.user ?? 'Sistem'}</p>
+                                        <p>{formatDateTime(h.created_at)}</p>
+                                    </div>
+                                </li>
+                            ))}
+                        </ol>
                     )}
                 </CardContent>
             </Card>

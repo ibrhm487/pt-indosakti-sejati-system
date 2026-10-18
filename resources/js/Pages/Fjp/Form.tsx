@@ -1,8 +1,17 @@
+import Checkbox from '@/Components/Checkbox';
 import SchoolPicker, { DapoSchoolDetail } from '@/Components/SchoolPicker';
-import { Button, Card, Field, Input, Textarea } from '@/Components/ui';
+import { Button, Card, Field, Input, Select, Textarea } from '@/Components/ui';
 import { Head, InertiaFormProps, Link, useForm } from '@inertiajs/react';
-import { Building2, MapPinned, StickyNote } from 'lucide-react';
+import { Building2, CalendarClock, MapPinned, StickyNote } from 'lucide-react';
 import { FormEvent, ReactNode } from 'react';
+
+export type FormOption = { id: number; name: string };
+
+export type FjpFormOptions = {
+    brands?: FormOption[];
+    eventTypes?: FormOption[];
+    venues?: FormOption[];
+};
 
 export type FjpFormData = {
     school_name: string;
@@ -13,6 +22,14 @@ export type FjpFormData = {
     jumlah_siswa_dapodik: string;
     dapodik_source: string;
     notes: string;
+    brand_id: string;
+    event_type_id: string;
+    venue_id: string;
+    event_date: string;
+    start_time: string;
+    end_time: string;
+    sampling_target: string;
+    jug_required: boolean;
 };
 
 export const EMPTY_FJP_FORM: FjpFormData = {
@@ -24,6 +41,14 @@ export const EMPTY_FJP_FORM: FjpFormData = {
     jumlah_siswa_dapodik: '',
     dapodik_source: '',
     notes: '',
+    brand_id: '',
+    event_type_id: '',
+    venue_id: '',
+    event_date: '',
+    start_time: '',
+    end_time: '',
+    sampling_target: '',
+    jug_required: false,
 };
 
 const DAPODIK_SOURCE = 'Dapodik (dapo.kemendikdasmen.go.id)';
@@ -50,7 +75,13 @@ function Section({
     );
 }
 
-export function FjpFormFields({ form }: { form: InertiaFormProps<FjpFormData> }) {
+export function FjpFormFields({
+    form,
+    options,
+}: {
+    form: InertiaFormProps<FjpFormData>;
+    options?: FjpFormOptions;
+}) {
     const { data, setData, errors } = form;
 
     const applyDapodik = (detail: DapoSchoolDetail) => {
@@ -157,6 +188,90 @@ export function FjpFormFields({ form }: { form: InertiaFormProps<FjpFormData> })
                 </div>
             </Section>
 
+            <Section icon={<CalendarClock className="h-3.5 w-3.5" />} title="Jadwal & Target">
+                <div className="grid gap-4 sm:grid-cols-2">
+                    <Field label="Brand" error={errors.brand_id}>
+                        <Select
+                            value={data.brand_id}
+                            onChange={(e) => setData('brand_id', e.target.value)}
+                        >
+                            <option value="">- Pilih brand -</option>
+                            {(options?.brands ?? []).map((b) => (
+                                <option key={b.id} value={b.id}>
+                                    {b.name}
+                                </option>
+                            ))}
+                        </Select>
+                    </Field>
+                    <Field label="Jenis Event" error={errors.event_type_id}>
+                        <Select
+                            value={data.event_type_id}
+                            onChange={(e) => setData('event_type_id', e.target.value)}
+                        >
+                            <option value="">- Pilih jenis -</option>
+                            {(options?.eventTypes ?? []).map((t) => (
+                                <option key={t.id} value={t.id}>
+                                    {t.name}
+                                </option>
+                            ))}
+                        </Select>
+                    </Field>
+                    <Field label="Venue" error={errors.venue_id}>
+                        <Select
+                            value={data.venue_id}
+                            onChange={(e) => setData('venue_id', e.target.value)}
+                        >
+                            <option value="">- Pilih venue -</option>
+                            {(options?.venues ?? []).map((v) => (
+                                <option key={v.id} value={v.id}>
+                                    {v.name}
+                                </option>
+                            ))}
+                        </Select>
+                    </Field>
+                    <Field label="Tanggal Pelaksanaan" error={errors.event_date}>
+                        <Input
+                            type="date"
+                            value={data.event_date}
+                            onChange={(e) => setData('event_date', e.target.value)}
+                        />
+                    </Field>
+                    <Field label="Jam Mulai" error={errors.start_time}>
+                        <Input
+                            type="time"
+                            value={data.start_time}
+                            onChange={(e) => setData('start_time', e.target.value)}
+                        />
+                    </Field>
+                    <Field label="Jam Selesai" error={errors.end_time}>
+                        <Input
+                            type="time"
+                            value={data.end_time}
+                            onChange={(e) => setData('end_time', e.target.value)}
+                        />
+                    </Field>
+                    <Field label="Target Sampling (cup)" error={errors.sampling_target}>
+                        <Input
+                            type="number"
+                            min={0}
+                            value={data.sampling_target}
+                            onChange={(e) => setData('sampling_target', e.target.value)}
+                        />
+                    </Field>
+                    <label className="flex items-center gap-2 text-sm text-slate-700">
+                        <Checkbox
+                            checked={data.jug_required}
+                            onChange={(e) => setData('jug_required', e.target.checked)}
+                        />
+                        Butuh JUG (Just Use Gel)
+                    </label>
+                </div>
+                <p className="text-xs text-slate-400">
+                    Target sampling adalah target cup untuk satu shift pelaksanaan
+                    event ini. Nilai yang sama diwariskan ke event operasional.
+                </p>
+            </Section>
+
             <Section icon={<StickyNote className="h-3.5 w-3.5" />} title="Catatan">
                 <Field error={errors.notes}>
                     <Textarea
@@ -175,11 +290,13 @@ export default function FjpForm({
     action,
     method,
     title,
+    options,
 }: {
     initial?: Partial<FjpFormData>;
     action: string;
     method: 'post' | 'put';
     title: string;
+    options?: FjpFormOptions;
 }) {
     const form = useForm<FjpFormData>({
         ...EMPTY_FJP_FORM,
@@ -205,7 +322,7 @@ export default function FjpForm({
             <Head title={title} />
             <form onSubmit={submit}>
                 <Card className="p-5 sm:p-6">
-                    <FjpFormFields form={form} />
+                    <FjpFormFields form={form} options={options} />
                 </Card>
 
                 <div className="mt-4 flex items-center gap-2">

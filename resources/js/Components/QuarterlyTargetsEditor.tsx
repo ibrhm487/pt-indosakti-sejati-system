@@ -302,7 +302,7 @@ export default function QuarterlyTargetsEditor({
                                     colSpan={2}
                                     className="text-xs font-semibold uppercase tracking-wide text-slate-500"
                                 >
-                                    Total {year}
+                                    Total {year} (cup)
                                 </TD>
                                 <TD className="text-right font-mono font-semibold text-slate-900">
                                     {formatNumber(totalTarget)}

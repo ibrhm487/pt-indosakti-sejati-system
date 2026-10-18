@@ -26,13 +26,21 @@ import { cn, formatNumber } from '@/lib/utils';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { MapPin, Pencil, Plus, Trash2 } from 'lucide-react';
 import { FormEvent, useEffect, useState } from 'react';
-import { EMPTY_FJP_FORM, FjpFormData, FjpFormFields } from './Form';
+import { EMPTY_FJP_FORM, FjpFormData, FjpFormFields, FjpFormOptions } from './Form';
 
 type FjpRow = {
     id: number;
     fjp_number: string;
     event_name: string;
     brand: string | null;
+    brand_id: number | null;
+    event_type_id: number | null;
+    venue_id: number | null;
+    event_date: string | null;
+    start_time: string | null;
+    end_time: string | null;
+    sampling_target: number | null;
+    jug_required: boolean;
     school_name: string | null;
     npsn: string | null;
     address: string | null;
@@ -98,6 +106,7 @@ export default function FjpIndex({
     statusCounts,
     totalCount,
     statusOptions,
+    formOptions,
 }: {
     fjps: { data: FjpRow[] };
     filters: { search?: string; permit_status?: string };
@@ -105,6 +114,7 @@ export default function FjpIndex({
     statusCounts: Record<string, number>;
     totalCount: number;
     statusOptions: { value: string; label: string }[];
+    formOptions?: FjpFormOptions;
 }) {
     const [search, setSearch] = useState(filters.search ?? '');
     const [status, setStatus] = useState(filters.permit_status ?? '');
@@ -160,6 +170,14 @@ export default function FjpIndex({
                 f.jumlah_siswa_dapodik != null ? String(f.jumlah_siswa_dapodik) : '',
             dapodik_source: f.dapodik_source ?? '',
             notes: f.notes ?? '',
+            brand_id: f.brand_id != null ? String(f.brand_id) : '',
+            event_type_id: f.event_type_id != null ? String(f.event_type_id) : '',
+            venue_id: f.venue_id != null ? String(f.venue_id) : '',
+            event_date: f.event_date ?? '',
+            start_time: f.start_time ?? '',
+            end_time: f.end_time ?? '',
+            sampling_target: f.sampling_target != null ? String(f.sampling_target) : '',
+            jug_required: Boolean(f.jug_required),
         });
         form.clearErrors();
         setFormOpen(true);
@@ -423,7 +441,7 @@ export default function FjpIndex({
                 onSubmit={submitForm}
                 submitDisabled={form.processing}
             >
-                <FjpFormFields form={form} />
+                <FjpFormFields form={form} options={formOptions} />
             </ModalForm>
         </AppLayout>
     );

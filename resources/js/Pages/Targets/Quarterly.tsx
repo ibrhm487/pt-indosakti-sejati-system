@@ -204,7 +204,7 @@ export default function QuarterlyTargets({
                             <TR>
                                 <TH>Brand</TH>
                                 <TH className="text-right">
-                                    Realisasi Terverifikasi
+                                    Realisasi Terverifikasi (cup)
                                 </TH>
                                 <TH className="text-right">Pencapaian</TH>
                                 <TH className="text-right">Target (cup)</TH>
