@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 use Throwable;
 
 class QuickReportController extends Controller
@@ -34,7 +35,7 @@ class QuickReportController extends Controller
             'title' => $report->title,
             'body' => $report->body,
             'photo_url' => $report->photo_path
-                ? Storage::disk('public')->url($report->photo_path)
+                ? route('quick-reports.photo', $report->id)
                 : null,
             'created_at' => $report->created_at?->toIso8601String(),
             'event' => $report->event?->event_name,
@@ -79,7 +80,7 @@ class QuickReportController extends Controller
             'photo' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
         ]);
         $event = $this->reportableEvents($user)->findOrFail($data['event_id']);
-        $photoPath = $request->file('photo')->store('quick-reports/'.$event->id, 'public');
+        $photoPath = $request->file('photo')->store('quick-reports/'.$event->id);
 
         if ($photoPath === false) {
             throw new \RuntimeException('The quick report photo could not be stored.');
@@ -101,12 +102,34 @@ class QuickReportController extends Controller
                 ]);
             });
         } catch (Throwable $exception) {
-            Storage::disk('public')->delete($photoPath);
+            Storage::disk('local')->delete($photoPath);
 
             throw $exception;
         }
 
         return redirect()->route('quick-reports.index')->with('success', 'Quick Report berhasil dikirim.');
+    }
+
+    public function downloadPhoto(QuickReport $report): SymfonyResponse
+    {
+        $user = request()->user();
+
+        abort_unless($user->hasPermission('quick_reports.view'), 403);
+        abort_unless(
+            $this->visibleEvents($user)->whereKey($report->event_id)->exists(),
+            403,
+        );
+        abort_unless($report->photo_path, 404);
+
+        if (Storage::disk('local')->exists($report->photo_path)) {
+            return Storage::disk('local')->response($report->photo_path);
+        }
+
+        if (Storage::disk('public')->exists($report->photo_path)) {
+            return Storage::disk('public')->response($report->photo_path);
+        }
+
+        abort(404);
     }
 
     /**

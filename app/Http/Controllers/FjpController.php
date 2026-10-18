@@ -355,7 +355,7 @@ class FjpController extends Controller
         ]);
 
         $file = $request->file('file');
-        $path = $file->store('fjp/'.$fjp->id, 'public');
+        $path = $file->store('fjp/'.$fjp->id);
 
         $attachment = $fjp->attachments()->create([
             'category' => $data['category'] ?? 'other',

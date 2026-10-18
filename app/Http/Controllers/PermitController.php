@@ -118,7 +118,7 @@ class PermitController extends Controller
         ]);
 
         $file = $request->file('file');
-        $path = $file->store('permits/'.$permit->id, 'public');
+        $path = $file->store('permits/'.$permit->id);
 
         $version = $permit->documents()->max('version') + 1;
 

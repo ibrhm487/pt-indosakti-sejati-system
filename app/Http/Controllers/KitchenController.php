@@ -4,15 +4,18 @@ namespace App\Http\Controllers;
 
 use App\Enums\KitchenStatus;
 use App\Models\Event;
+use App\Models\KitchenReport;
 use App\Models\KitchenRequest;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Support\EventAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 class KitchenController extends Controller
 {
@@ -118,8 +121,8 @@ class KitchenController extends Controller
                 'notes' => $r->notes,
                 'prepared_by' => $r->preparer?->name,
                 'prepared_at' => $r->prepared_at?->toIso8601String(),
-                'photo_url' => $r->photo_path ? Storage::url($r->photo_path) : null,
-                'washing_photo_url' => $r->washing_photo_path ? Storage::url($r->washing_photo_path) : null,
+                'photo_url' => $r->photo_path ? route('kitchen.reports.photo', $r->id) : null,
+                'washing_photo_url' => $r->washing_photo_path ? route('kitchen.reports.washing-photo', $r->id) : null,
             ]),
             'statuses' => collect(KitchenStatus::cases())
                 ->reject(fn ($s) => $s === KitchenStatus::NOT_REQUIRED)
@@ -177,11 +180,11 @@ class KitchenController extends Controller
         ];
 
         if ($request->hasFile('photo')) {
-            $reportData['photo_path'] = $request->file('photo')->store('kitchen/reports', 'public');
+            $reportData['photo_path'] = $request->file('photo')->store('kitchen/reports');
         }
 
         if ($request->hasFile('washing_photo')) {
-            $reportData['washing_photo_path'] = $request->file('washing_photo')->store('kitchen/reports/washing', 'public');
+            $reportData['washing_photo_path'] = $request->file('washing_photo')->store('kitchen/reports/washing');
         }
 
         $report = $kitchen->reports()->create($reportData);
@@ -189,5 +192,48 @@ class KitchenController extends Controller
         AuditLogger::log('KITCHEN_REPORT', 'kitchen', $kitchen, null, $reportData);
 
         return back()->with('success', 'Laporan kesiapan kitchen dicatat.');
+    }
+
+    public function downloadPhoto(KitchenReport $report): SymfonyResponse
+    {
+        $this->authorizePhotoAccess($report);
+
+        abort_unless($report->photo_path && $this->photoExists($report->photo_path), 404);
+
+        return $this->streamPhoto($report->photo_path);
+    }
+
+    public function downloadWashingPhoto(KitchenReport $report): SymfonyResponse
+    {
+        $this->authorizePhotoAccess($report);
+
+        abort_unless($report->washing_photo_path && $this->photoExists($report->washing_photo_path), 404);
+
+        return $this->streamPhoto($report->washing_photo_path);
+    }
+
+    private function authorizePhotoAccess(KitchenReport $report): void
+    {
+        $user = request()->user();
+
+        abort_unless($user->hasPermission('kitchen.view'), 403);
+
+        $kitchen = $report->kitchenRequest()->with('event')->firstOrFail();
+
+        abort_unless(EventAccess::allows($user, $kitchen->event), 403);
+    }
+
+    private function photoExists(string $path): bool
+    {
+        return Storage::disk('local')->exists($path) || Storage::disk('public')->exists($path);
+    }
+
+    private function streamPhoto(string $path): SymfonyResponse
+    {
+        if (Storage::disk('local')->exists($path)) {
+            return Storage::disk('local')->response($path);
+        }
+
+        return Storage::disk('public')->response($path);
     }
 }

@@ -176,6 +176,18 @@ class ReportController extends Controller
         abort_unless($report->submitted_by === $request->user()->id, 403);
 
         $data = $this->validated($request, $report);
+
+        // Re-pointing a report to another event must only be possible when the
+        // target event is inside the user's own reportable scope; a plain
+        // exists:events,id check would let a PIC attach reports to any event.
+        if (
+            array_key_exists('event_id', $data)
+            && (int) $data['event_id'] !== $report->event_id
+            && ! $this->reportableEvents($request)->whereKey($data['event_id'])->exists()
+        ) {
+            abort(403, 'Anda tidak memiliki akses ke event tersebut.');
+        }
+
         $old = $report->only(array_keys($data));
 
         $report->update([

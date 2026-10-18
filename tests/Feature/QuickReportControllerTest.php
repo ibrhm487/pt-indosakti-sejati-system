@@ -20,7 +20,7 @@ class QuickReportControllerTest extends TestCase
     public function test_team_can_submit_a_photo_report_for_an_assigned_event(): void
     {
         $this->seed(RolePermissionSeeder::class);
-        Storage::fake('public');
+        Storage::fake('local');
         $team = User::where('email', 'team@indosakti.com')->firstOrFail();
         $pic = User::where('email', 'pic@indosakti.com')->firstOrFail();
         $event = $this->createEvent($pic, 'EVT-QUICK-REPORT-ASSIGNED');
@@ -42,7 +42,7 @@ class QuickReportControllerTest extends TestCase
             'title' => 'Sampling pagi',
             'body' => 'Kegiatan berjalan lancar.',
         ]);
-        Storage::disk('public')->assertExists($report->photo_path);
+        Storage::disk('local')->assertExists($report->photo_path);
         $this->assertDatabaseHas('audit_logs', [
             'action' => 'CREATE_QUICK_REPORT',
             'record_id' => $report->id,
@@ -52,7 +52,7 @@ class QuickReportControllerTest extends TestCase
     public function test_team_cannot_submit_a_quick_report_for_an_unassigned_event(): void
     {
         $this->seed(RolePermissionSeeder::class);
-        Storage::fake('public');
+        Storage::fake('local');
         $team = User::where('email', 'team@indosakti.com')->firstOrFail();
         $pic = User::where('email', 'pic@indosakti.com')->firstOrFail();
         $event = $this->createEvent($pic, 'EVT-QUICK-REPORT-OTHER');
@@ -64,7 +64,7 @@ class QuickReportControllerTest extends TestCase
         ])->assertNotFound();
 
         $this->assertDatabaseMissing('quick_reports', ['event_id' => $event->id]);
-        $this->assertSame([], Storage::disk('public')->allFiles());
+        $this->assertSame([], Storage::disk('local')->allFiles());
     }
 
     public function test_quick_report_requires_a_valid_photo(): void

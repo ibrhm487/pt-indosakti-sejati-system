@@ -27,7 +27,6 @@ use App\Support\EventAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -358,7 +357,7 @@ class EventController extends Controller
                     'notes' => $r->notes,
                     'prepared_by' => $r->preparer?->name,
                     'prepared_at' => $r->prepared_at?->toIso8601String(),
-                    'photo_url' => $r->photo_path ? Storage::disk('public')->url($r->photo_path) : null,
+                    'photo_url' => $r->photo_path ? route('kitchen.reports.photo', $r->id) : null,
                 ])->values(),
             ] : null) : null,
             'reports' => $event->reports->map(fn (EventReport $r) => [
@@ -382,7 +381,7 @@ class EventController extends Controller
                 'body' => $q->body,
                 'user' => $q->user?->name,
                 'created_at' => $q->created_at?->toIso8601String(),
-                'photo_url' => $q->photo_path ? Storage::disk('public')->url($q->photo_path) : null,
+                'photo_url' => $q->photo_path ? route('quick-reports.photo', $q->id) : null,
             ])->values() : [],
             'documents' => $event->documents->map(fn (Document $d) => [
                 'id' => $d->id,
@@ -473,6 +472,8 @@ class EventController extends Controller
 
     public function updateStatus(Request $request, Event $event)
     {
+        $this->authorizeView($request, $event);
+
         $data = $request->validate([
             'status' => ['required', Rule::enum(EventStatus::class)],
         ]);
@@ -505,6 +506,7 @@ class EventController extends Controller
     public function close(Request $request, Event $event, EventReadinessService $readiness)
     {
         abort_unless($request->user()->hasPermission('events.close'), 403);
+        $this->authorizeView($request, $event);
 
         if ($event->status->isTerminal()) {
             return back()->withErrors(['close' => 'Event sudah selesai atau dibatalkan.']);
@@ -571,6 +573,8 @@ class EventController extends Controller
 
     public function assignTeam(Request $request, Event $event)
     {
+        $this->authorizeView($request, $event);
+
         $data = $request->validate([
             'user_id' => ['nullable', 'required_without:personnel_id', 'exists:users,id'],
             'personnel_id' => ['nullable', 'required_without:user_id', 'exists:personnel,id'],
@@ -587,8 +591,9 @@ class EventController extends Controller
         return back()->with('success', 'Anggota tim ditugaskan.')->with('member_id', $member->id);
     }
 
-    public function removeTeam(Event $event, EventTeamMember $member)
+    public function removeTeam(Request $request, Event $event, EventTeamMember $member)
     {
+        $this->authorizeView($request, $event);
         abort_unless($member->event_id === $event->id, 404);
 
         AuditLogger::log('REMOVE_TEAM', 'events', $event, ['member_id' => $member->id]);

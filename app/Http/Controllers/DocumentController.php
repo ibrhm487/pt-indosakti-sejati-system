@@ -43,7 +43,7 @@ class DocumentController extends Controller
         $this->authorizeUpload($request, $model);
 
         $file = $request->file('file');
-        $path = $file->store('documents/'.$data['documentable_type'], 'public');
+        $path = $file->store('documents/'.$data['documentable_type']);
 
         $document = $model->documents()->create([
             'category' => $data['category'] ?? 'other',
@@ -63,27 +63,21 @@ class DocumentController extends Controller
     {
         $this->authorizeDownload(request(), $document->documentable);
 
-        abort_unless(Storage::disk('public')->exists($document->path), 404);
-
-        return Storage::disk('public')->download($document->path, $document->original_name);
+        return $this->streamDownload($document->path, $document->original_name);
     }
 
     public function downloadFjp(FjpAttachment $attachment): StreamedResponse
     {
         abort_unless(request()->user()->hasPermission('fjp.view'), 403);
 
-        abort_unless(Storage::disk('public')->exists($attachment->path), 404);
-
-        return Storage::disk('public')->download($attachment->path, $attachment->original_name);
+        return $this->streamDownload($attachment->path, $attachment->original_name);
     }
 
     public function downloadPermit(PermitDocument $document): StreamedResponse
     {
         abort_unless(request()->user()->hasPermission('permits.view'), 403);
 
-        abort_unless(Storage::disk('public')->exists($document->path), 404);
-
-        return Storage::disk('public')->download($document->path, $document->original_name);
+        return $this->streamDownload($document->path, $document->original_name);
     }
 
     public function destroy(Document $document)
@@ -97,10 +91,33 @@ class DocumentController extends Controller
 
         AuditLogger::log('DELETE_DOCUMENT', 'documents', $document, ['name' => $document->original_name]);
 
-        Storage::disk('public')->delete($document->path);
+        foreach (['local', 'public'] as $disk) {
+            if (Storage::disk($disk)->exists($document->path)) {
+                Storage::disk($disk)->delete($document->path);
+            }
+        }
         $document->delete();
 
         return back()->with('success', 'Dokumen dihapus.');
+    }
+
+    /**
+     * Stream a stored document from the private disk, falling back to the
+     * legacy public location for files uploaded before the private-storage
+     * migration. The migration command copies everything to the private disk;
+     * once complete the public fallback can be removed.
+     */
+    private function streamDownload(string $path, string $name): StreamedResponse
+    {
+        if (Storage::disk('local')->exists($path)) {
+            return Storage::disk('local')->download($path, $name);
+        }
+
+        if (Storage::disk('public')->exists($path)) {
+            return Storage::disk('public')->download($path, $name);
+        }
+
+        abort(404);
     }
 
     /**

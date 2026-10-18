@@ -137,6 +137,8 @@ Route::middleware('auth')->group(function () {
     Route::get('kitchen/{kitchen}', [KitchenController::class, 'show'])->middleware('permission:kitchen.view')->name('kitchen.show');
     Route::patch('kitchen/{kitchen}/status', [KitchenController::class, 'updateStatus'])->middleware('permission:kitchen.manage')->name('kitchen.status');
     Route::post('kitchen/{kitchen}/reports', [KitchenController::class, 'addReport'])->middleware('permission:kitchen.manage')->name('kitchen.reports.store');
+    Route::get('kitchen-reports/{report}/photo', [KitchenController::class, 'downloadPhoto'])->name('kitchen.reports.photo');
+    Route::get('kitchen-reports/{report}/washing-photo', [KitchenController::class, 'downloadWashingPhoto'])->name('kitchen.reports.washing-photo');
 
     // ---------------------------------------------------------------------
     // Reports
@@ -157,6 +159,7 @@ Route::middleware('auth')->group(function () {
     Route::get('quick-reports', [QuickReportController::class, 'index'])->middleware('permission:quick_reports.view')->name('quick-reports.index');
     Route::get('quick-reports/create', [QuickReportController::class, 'create'])->middleware('permission:quick_reports.create')->name('quick-reports.create');
     Route::post('quick-reports', [QuickReportController::class, 'store'])->middleware('permission:quick_reports.create')->name('quick-reports.store');
+    Route::get('quick-reports/{report}/photo', [QuickReportController::class, 'downloadPhoto'])->name('quick-reports.photo');
 
     // ---------------------------------------------------------------------
     // Attendance
