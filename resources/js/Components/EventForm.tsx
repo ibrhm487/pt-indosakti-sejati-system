@@ -36,8 +36,8 @@ function Section({
 }) {
     return (
         <div className="space-y-3">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
-                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted">
+                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-page text-muted">
                     {icon}
                 </span>
                 {title}
@@ -163,14 +163,14 @@ export default function EventForm({
                             onChange={(e) => setData('end_time', e.target.value)}
                         />
                     </Field>
-                    <label className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 sm:col-span-2">
+                    <label className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-border bg-page px-3.5 py-2.5 sm:col-span-2">
                         <input
                             type="checkbox"
-                            className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                            className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
                             checked={data.jug_required}
                             onChange={(e) => setData('jug_required', e.target.checked)}
                         />
-                        <span className="text-sm text-slate-700">
+                        <span className="text-sm text-text">
                             Butuh JUG (cuci gelas)
                         </span>
                     </label>

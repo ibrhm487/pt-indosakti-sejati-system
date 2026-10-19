@@ -103,7 +103,7 @@ export default function PermitsShow({
             </PageHeader>
 
             {pageErrors.status && (
-                <p className="mb-4 rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
+                <p className="mb-4 rounded-xl bg-danger/10 px-3.5 py-2.5 text-sm text-danger">
                     {pageErrors.status}
                 </p>
             )}
@@ -125,7 +125,7 @@ export default function PermitsShow({
                         </dl>
 
                         {permit.reason && (
-                            <p className="mt-4 rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
+                            <p className="mt-4 rounded-xl bg-danger/10 px-3.5 py-2.5 text-sm text-danger">
                                 Alasan: {permit.reason}
                             </p>
                         )}
@@ -204,19 +204,19 @@ export default function PermitsShow({
                     ) : (
                         <ol className="space-y-3">
                             {history.map((h) => (
-                                <li key={h.id} className="flex items-start justify-between gap-4 rounded-xl bg-slate-50 px-3.5 py-2.5 text-sm">
+                                <li key={h.id} className="flex items-start justify-between gap-4 rounded-xl bg-page px-3.5 py-2.5 text-sm">
                                     <div>
-                                        <p className="font-medium text-slate-800">
+                                        <p className="font-medium text-text">
                                             {HISTORY_LABELS[h.action] ?? h.action}
                                         </p>
                                         {h.reason && (
-                                            <p className="mt-0.5 text-xs text-slate-500">
+                                            <p className="mt-0.5 text-xs text-muted">
                                                 Alasan: {h.reason}
                                             </p>
                                         )}
                                     </div>
-                                    <div className="shrink-0 text-right text-xs text-slate-500">
-                                        <p className="font-medium text-slate-700">{h.user ?? 'Sistem'}</p>
+                                    <div className="shrink-0 text-right text-xs text-muted">
+                                        <p className="font-medium text-text">{h.user ?? 'Sistem'}</p>
                                         <p>{formatDateTime(h.created_at)}</p>
                                     </div>
                                 </li>
@@ -248,8 +248,8 @@ export default function PermitsShow({
 function Detail({ label, value, className }: { label: string; value: any; className?: string }) {
     return (
         <div className={className}>
-            <dt className="text-xs uppercase tracking-wide text-slate-400">{label}</dt>
-            <dd className="mt-0.5 text-slate-800">{value || '-'}</dd>
+            <dt className="text-xs uppercase tracking-wide text-muted">{label}</dt>
+            <dd className="mt-0.5 text-text">{value || '-'}</dd>
         </div>
     );
 }

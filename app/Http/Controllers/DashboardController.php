@@ -31,10 +31,54 @@ class DashboardController extends Controller
             'stats' => $this->statsForRole($user, $role),
             'quarterly' => $this->quarterlyTargets(),
             'upcomingEvents' => $this->upcomingEvents($user, $role),
+            'trend' => $this->monthlyTrend($user, $role),
             // FJP student figures are scoped by fjp.view; roles without that
             // permission (team, kitchen, warehouse, admin_event) get no data.
             'schoolComparison' => $user->hasPermission('fjp.view') ? $this->schoolComparison() : [],
         ]);
+    }
+
+    /** Indonesian short month labels (app locale stays English). */
+    private const MONTH_LABELS = [
+        1 => 'Jan', 2 => 'Feb', 3 => 'Mar', 4 => 'Apr', 5 => 'Mei', 6 => 'Jun',
+        7 => 'Jul', 8 => 'Agu', 9 => 'Sep', 10 => 'Okt', 11 => 'Nov', 12 => 'Des',
+    ];
+
+    /**
+     * Events scheduled vs completed per month for the last 6 months,
+     * scoped the same way as the role's stat cards.
+     */
+    private function monthlyTrend($user, ?string $role): array
+    {
+        $query = Event::query();
+
+        if ($role === 'pic') {
+            $query->where('pic_id', $user->id);
+        } elseif ($role === 'team') {
+            $query->whereHas('teamMembers', fn ($q) => $q->where('user_id', $user->id));
+        }
+
+        $events = (clone $query)
+            ->whereDate('event_date', '>=', now()->subMonths(5)->startOfMonth())
+            ->get(['event_date', 'status']);
+
+        return collect(range(5, 0))
+            ->map(fn ($i) => now()->subMonths($i))
+            ->map(function ($month) use ($events) {
+                $inMonth = $events->filter(
+                    fn (Event $event) => $event->event_date?->isSameMonth($month) ?? false,
+                );
+
+                return [
+                    'month' => self::MONTH_LABELS[(int) $month->format('n')].' '.$month->format('y'),
+                    'total' => $inMonth->count(),
+                    'completed' => $inMonth->filter(
+                        fn (Event $event) => $event->status === EventStatus::COMPLETED,
+                    )->count(),
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     private function statsForRole($user, ?string $role): array

@@ -68,8 +68,8 @@ export default function AdminAuditLogsIndex({
                                     <TR key={l.id}>
                                         <TD className="whitespace-nowrap">{formatDateTime(l.at)}</TD>
                                         <TD>
-                                            <p className="font-medium text-slate-800">{l.user ?? 'Sistem'}</p>
-                                            {l.role && <p className="text-xs text-slate-400">{l.role}</p>}
+                                            <p className="font-medium text-text">{l.user ?? 'Sistem'}</p>
+                                            {l.role && <p className="text-xs text-muted">{l.role}</p>}
                                         </TD>
                                         <TD><Badge variant="outline">{l.action}</Badge></TD>
                                         <TD>{l.module ?? '-'}</TD>
@@ -105,33 +105,33 @@ export default function AdminAuditLogsIndex({
                     <div className="space-y-4">
                         <div className="grid grid-cols-2 gap-2 text-sm">
                             <div>
-                                <p className="text-xs uppercase tracking-wide text-slate-400">Aksi</p>
-                                <p className="text-slate-800">{detail.action}</p>
+                                <p className="text-xs uppercase tracking-wide text-muted">Aksi</p>
+                                <p className="text-text">{detail.action}</p>
                             </div>
                             <div>
-                                <p className="text-xs uppercase tracking-wide text-slate-400">Modul</p>
-                                <p className="text-slate-800">{detail.module ?? '-'}</p>
+                                <p className="text-xs uppercase tracking-wide text-muted">Modul</p>
+                                <p className="text-text">{detail.module ?? '-'}</p>
                             </div>
                             <div>
-                                <p className="text-xs uppercase tracking-wide text-slate-400">Rekaman</p>
-                                <p className="text-slate-800">
+                                <p className="text-xs uppercase tracking-wide text-muted">Rekaman</p>
+                                <p className="text-text">
                                     {detail.record_type ? `${detail.record_type} #${detail.record_id ?? '-'}` : '-'}
                                 </p>
                             </div>
                             <div>
-                                <p className="text-xs uppercase tracking-wide text-slate-400">Waktu</p>
-                                <p className="text-slate-800">{formatDateTime(detail.at)}</p>
+                                <p className="text-xs uppercase tracking-wide text-muted">Waktu</p>
+                                <p className="text-text">{formatDateTime(detail.at)}</p>
                             </div>
                         </div>
                         <div>
-                            <p className="mb-1 text-xs uppercase tracking-wide text-slate-400">Nilai Lama</p>
-                            <pre className="max-h-48 overflow-auto rounded-md bg-slate-50 p-3 text-xs text-slate-700">
+                            <p className="mb-1 text-xs uppercase tracking-wide text-muted">Nilai Lama</p>
+                            <pre className="max-h-48 overflow-auto rounded-md bg-page p-3 text-xs text-text">
                                 {detail.old_values ? JSON.stringify(detail.old_values, null, 2) : '-'}
                             </pre>
                         </div>
                         <div>
-                            <p className="mb-1 text-xs uppercase tracking-wide text-slate-400">Nilai Baru</p>
-                            <pre className="max-h-48 overflow-auto rounded-md bg-slate-50 p-3 text-xs text-slate-700">
+                            <p className="mb-1 text-xs uppercase tracking-wide text-muted">Nilai Baru</p>
+                            <pre className="max-h-48 overflow-auto rounded-md bg-page p-3 text-xs text-text">
                                 {detail.new_values ? JSON.stringify(detail.new_values, null, 2) : '-'}
                             </pre>
                         </div>

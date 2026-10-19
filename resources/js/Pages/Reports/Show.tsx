@@ -1,3 +1,4 @@
+import { PageHeader } from '@/Components/AppBits';
 import { Button, Card, CardContent, CardHeader, CardTitle, Field, Input, Modal, StatCard, StatusBadge, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
 import AppLayout from '@/Layouts/AppLayout';
 import { formatDate, formatDateTime, formatNumber } from '@/lib/utils';
@@ -43,6 +44,15 @@ export default function ReportsShow({
     return (
         <AppLayout title="Detail Laporan">
             <Head title={`Laporan - ${report.event}`} />
+
+            <PageHeader
+                title={`Laporan ${report.event ?? ''}`}
+                subtitle="Detail laporan harian, realisasi sampling, dan verifikasi."
+                breadcrumbs={[
+                    { label: 'Laporan', href: route('reports.index') },
+                    { label: 'Detail' },
+                ]}
+            />
 
             <div className="mb-6 grid gap-4 sm:grid-cols-3">
                 <StatCard
@@ -120,7 +130,7 @@ export default function ReportsShow({
                 </CardHeader>
                 <CardContent>
                     {documents.length === 0 ? (
-                        <p className="text-sm text-slate-400">Belum ada dokumen.</p>
+                        <p className="text-sm text-muted">Belum ada dokumen.</p>
                     ) : (
                         <Table>
                             <THead>
@@ -176,8 +186,8 @@ export default function ReportsShow({
 function Detail({ label, value, className }: { label: string; value: any; className?: string }) {
     return (
         <div className={className}>
-            <dt className="text-xs uppercase tracking-wide text-slate-400">{label}</dt>
-            <dd className="mt-0.5 text-slate-800">{value || '-'}</dd>
+            <dt className="text-xs uppercase tracking-wide text-muted">{label}</dt>
+            <dd className="mt-0.5 text-text">{value || '-'}</dd>
         </div>
     );
 }

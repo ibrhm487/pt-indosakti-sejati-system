@@ -82,7 +82,7 @@ export default function KitchenIndex({
 
             <FilterCard>
                 <form onSubmit={submit} className="flex flex-col gap-3 sm:flex-row sm:items-end">
-                    <label className="flex flex-col gap-1 text-xs font-medium text-slate-500">
+                    <label className="flex flex-col gap-1 text-xs font-medium text-muted">
                         Event
                         <Select
                             aria-label="Filter event"
@@ -98,7 +98,7 @@ export default function KitchenIndex({
                             ))}
                         </Select>
                     </label>
-                    <label className="flex flex-col gap-1 text-xs font-medium text-slate-500">
+                    <label className="flex flex-col gap-1 text-xs font-medium text-muted">
                         Tanggal
                         <Input
                             aria-label="Filter tanggal"
@@ -108,7 +108,7 @@ export default function KitchenIndex({
                             onChange={(e) => setDate(e.target.value)}
                         />
                     </label>
-                    <label className="flex flex-col gap-1 text-xs font-medium text-slate-500">
+                    <label className="flex flex-col gap-1 text-xs font-medium text-muted">
                         Status
                         <Select
                             aria-label="Filter status"
@@ -155,7 +155,7 @@ export default function KitchenIndex({
                                         <TD>
                                             <Link
                                                 href={route('kitchen.show', r.id)}
-                                                className="font-medium text-slate-800 hover:text-indigo-600"
+                                                className="font-medium text-text hover:text-primary"
                                             >
                                                 {r.event}
                                             </Link>

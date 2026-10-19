@@ -1,3 +1,4 @@
+import { PageHeader } from '@/Components/AppBits';
 import { Button, Card, CardContent, CardHeader, CardTitle, Field, Input, Select, Table, TBody, TD, TH, THead, TR, Textarea } from '@/Components/ui';
 import AppLayout from '@/Layouts/AppLayout';
 import { formatNumber } from '@/lib/utils';
@@ -73,6 +74,14 @@ export default function ReturnForm({
     return (
         <AppLayout title="Catat Pengembalian">
             <Head title="Catat Pengembalian" />
+            <PageHeader
+                title="Catat Pengembalian"
+                subtitle="Catat barang yang dikembalikan dari event ke gudang."
+                breadcrumbs={[
+                    { label: 'Pengembalian', href: route('warehouse.returns.index') },
+                    { label: 'Catat' },
+                ]}
+            />
             <form onSubmit={submit}>
                 <Card className="mb-6">
                     <CardHeader>
@@ -98,7 +107,7 @@ export default function ReturnForm({
                                     type="file"
                                     accept="image/jpeg,image/png,image/webp"
                                     onChange={(e) => setData('photo', e.target.files?.[0] ?? null)}
-                                    className="block w-full cursor-pointer rounded-lg border border-slate-200 bg-white text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-slate-700"
+                                    className="block w-full cursor-pointer rounded-lg border border-border bg-surface text-sm text-text file:mr-3 file:rounded-lg file:border-0 file:bg-page file:px-3 file:py-2 file:text-text"
                                 />
                             </Field>
                         </div>
@@ -124,8 +133,8 @@ export default function ReturnForm({
                                     {activeRequest.items.map((item, index) => (
                                         <TR key={item.product_id}>
                                             <TD>
-                                                <p className="font-medium text-slate-800">{item.product ?? '-'}</p>
-                                                <p className="text-xs text-slate-400">{item.unit}</p>
+                                                <p className="font-medium text-text">{item.product ?? '-'}</p>
+                                                <p className="text-xs text-muted">{item.unit}</p>
                                             </TD>
                                             <TD className="text-right">{formatNumber(item.quantity_issued)}</TD>
                                             <TD>
@@ -152,7 +161,7 @@ export default function ReturnForm({
                     </Card>
                 )}
 
-                {errors.items && <p className="mb-4 text-sm text-red-600">{errors.items}</p>}
+                {errors.items && <p className="mb-4 text-sm text-danger">{errors.items}</p>}
 
                 <div className="flex items-center gap-2">
                     <Button type="submit" variant="primary" disabled={processing}>

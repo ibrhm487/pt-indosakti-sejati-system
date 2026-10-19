@@ -85,10 +85,10 @@ export default function ReceiptsIndex({
                             <TBody>
                                 {receipts.data.map((r) => (
                                     <TR key={r.id}>
-                                        <TD className="font-medium text-slate-800">{r.receipt_number}</TD>
+                                        <TD className="font-medium text-text">{r.receipt_number}</TD>
                                         <TD>
-                                            <p className="font-medium text-slate-800">{r.product ?? '-'}</p>
-                                            <p className="text-xs text-slate-400">{r.sku}</p>
+                                            <p className="font-medium text-text">{r.product ?? '-'}</p>
+                                            <p className="text-xs text-muted">{r.sku}</p>
                                         </TD>
                                         <TD className="text-right">{formatNumber(r.quantity)}</TD>
                                         <TD>{r.supplier ?? '-'}</TD>
@@ -96,11 +96,11 @@ export default function ReceiptsIndex({
                                         <TD>{r.recorded_by ?? '-'}</TD>
                                         <TD>
                                             {r.photo_url ? (
-                                                <a href={r.photo_url} target="_blank" rel="noreferrer" className="text-sm font-medium text-blue-600 hover:underline">
+                                                <a href={r.photo_url} target="_blank" rel="noreferrer" className="text-sm font-medium text-primary hover:underline">
                                                     Lihat Foto
                                                 </a>
                                             ) : (
-                                                <span className="text-xs text-slate-400">—</span>
+                                                <span className="text-xs text-muted">—</span>
                                             )}
                                         </TD>
                                     </TR>

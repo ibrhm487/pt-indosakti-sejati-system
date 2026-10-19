@@ -1,4 +1,5 @@
 import UserForm, { RoleOption } from '@/Components/UserForm';
+import { Head } from '@inertiajs/react';
 
 export default function AdminUsersForm({
     user,
@@ -15,5 +16,10 @@ export default function AdminUsersForm({
     } | null;
     roles: RoleOption[];
 }) {
-    return <UserForm user={user} roles={roles} />;
+    return (
+        <>
+            <Head title={user ? 'Ubah Pengguna' : 'Pengguna Baru'} />
+            <UserForm user={user} roles={roles} />
+        </>
+    );
 }

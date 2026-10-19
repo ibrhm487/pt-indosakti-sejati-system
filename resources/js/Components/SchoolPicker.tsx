@@ -139,7 +139,7 @@ export default function SchoolPicker({
     return (
         <div ref={boxRef} className="relative">
             <div className="relative">
-                <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
                 <Input
                     className="h-11 rounded-xl pl-10 pr-10"
                     placeholder="Cari sekolah di portal Dapodik (nama / NPSN)…"
@@ -151,33 +151,33 @@ export default function SchoolPicker({
                     onFocus={() => results.length > 0 && setOpen(true)}
                 />
                 {(loading || picking) && (
-                    <Loader2 className="absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-indigo-500" />
+                    <Loader2 className="absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-primary" />
                 )}
             </div>
 
             {error && (
-                <p role="alert" className="mt-1.5 text-xs text-red-600">
+                <p role="alert" className="mt-1.5 text-xs text-danger">
                     {error}
                 </p>
             )}
 
             {open && results.length > 0 && (
-                <div className="absolute z-20 mt-2 max-h-72 w-full space-y-0.5 overflow-y-auto rounded-xl border border-slate-200/80 bg-white p-1 shadow-xl shadow-slate-900/5 ring-1 ring-slate-900/5">
+                <div className="absolute z-20 mt-2 max-h-72 w-full space-y-0.5 overflow-y-auto rounded-xl border border-border bg-surface p-1 shadow-xl shadow-slate-900/5 ring-1 ring-border">
                     {results.map((r) => (
                         <button
                             key={r.npsn}
                             type="button"
                             onClick={() => pick(r)}
-                            className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-slate-50"
+                            className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-page"
                         >
-                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
+                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                                 <School className="h-4 w-4" />
                             </span>
                             <span className="min-w-0 flex-1">
-                                <span className="block truncate text-sm font-medium text-slate-800">
+                                <span className="block truncate text-sm font-medium text-text">
                                     {r.nama}
                                 </span>
-                                <span className="mt-0.5 block truncate text-xs text-slate-400">
+                                <span className="mt-0.5 block truncate text-xs text-muted">
                                     <span className="font-mono">
                                         {r.npsn}
                                     </span>
@@ -203,8 +203,8 @@ export default function SchoolPicker({
                 !error &&
                 query.trim().length >= 3 &&
                 results.length === 0 && (
-                    <div className="absolute z-20 mt-2 flex w-full items-center gap-2 rounded-xl border border-slate-200/80 bg-white px-3.5 py-3 text-sm text-slate-500 shadow-xl shadow-slate-900/5 ring-1 ring-slate-900/5">
-                        <SearchX className="h-4 w-4 text-slate-300" />
+                    <div className="absolute z-20 mt-2 flex w-full items-center gap-2 rounded-xl border border-border bg-surface px-3.5 py-3 text-sm text-muted shadow-xl shadow-slate-900/5 ring-1 ring-border">
+                        <SearchX className="h-4 w-4 text-muted/60" />
                         Tidak ada sekolah yang cocok.
                     </div>
                 )}

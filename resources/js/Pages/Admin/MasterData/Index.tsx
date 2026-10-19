@@ -52,10 +52,10 @@ function ActiveCheckbox({
     onChange: (value: boolean) => void;
 }) {
     return (
-        <label className="flex items-center gap-2 text-sm text-slate-700">
+        <label className="flex items-center gap-2 text-sm text-text">
             <input
                 type="checkbox"
-                className="h-4 w-4 rounded border-slate-300"
+                className="h-4 w-4 rounded border-border"
                 checked={checked}
                 onChange={(e) => onChange(e.target.checked)}
             />
@@ -129,7 +129,7 @@ function BrandsSection({ items }: { items: any[] }) {
                         <TBody>
                             {items.map((b: any) => (
                                 <TR key={b.id}>
-                                    <TD className="font-medium text-slate-800">{b.name}</TD>
+                                    <TD className="font-medium text-text">{b.name}</TD>
                                     <TD>{b.quarterly_target_cups ?? '-'}</TD>
                                     <TD>
                                         <Badge variant={b.is_active ? 'success' : 'danger'}>
@@ -269,7 +269,7 @@ function EventTypesSection({ items }: { items: any[] }) {
                         <TBody>
                             {items.map((t: any) => (
                                 <TR key={t.id}>
-                                    <TD className="font-medium text-slate-800">{t.name}</TD>
+                                    <TD className="font-medium text-text">{t.name}</TD>
                                     <TD>{t.requires_school ? 'Ya' : 'Tidak'}</TD>
                                     <TD>{t.kitchen_default ? 'Ya' : 'Tidak'}</TD>
                                     <TD>
@@ -423,7 +423,7 @@ function VenuesSection({ items }: { items: any[] }) {
                         <TBody>
                             {items.map((v: any) => (
                                 <TR key={v.id}>
-                                    <TD className="font-medium text-slate-800">{v.name}</TD>
+                                    <TD className="font-medium text-text">{v.name}</TD>
                                     <TD>{v.npsn ?? '-'}</TD>
                                     <TD>{v.city ?? '-'}</TD>
                                     <TD>{v.province ?? '-'}</TD>
@@ -561,7 +561,7 @@ function CategoriesSection({ items }: { items: any[] }) {
                         <TBody>
                             {items.map((c: any) => (
                                 <TR key={c.id}>
-                                    <TD className="font-medium text-slate-800">{c.name}</TD>
+                                    <TD className="font-medium text-text">{c.name}</TD>
                                     <TD className="text-right">
                                         <div className="flex justify-end gap-2">
                                             <Button size="sm" variant="outline" onClick={() => openEdit(c)}>

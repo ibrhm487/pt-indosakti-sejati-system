@@ -84,7 +84,7 @@ export default function MrvIndex({
                                         <TD>
                                             <Link
                                                 href={route('warehouse.mrv.show', r.id)}
-                                                className="font-medium text-slate-800 hover:text-indigo-600"
+                                                className="font-medium text-text hover:text-primary"
                                             >
                                                 {r.mrv_number}
                                             </Link>

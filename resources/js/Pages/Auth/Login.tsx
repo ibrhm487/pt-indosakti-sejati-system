@@ -27,15 +27,15 @@ export default function Login({
         <GuestLayout>
             <Head title="Masuk" />
 
-            <h1 className="text-lg font-semibold tracking-tight text-slate-900">
+            <h1 className="text-lg font-semibold tracking-tight text-text">
                 Masuk
             </h1>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-sm text-muted">
                 Selamat datang kembali. Silakan masuk ke akun Anda.
             </p>
 
             {status && (
-                <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-sm font-medium text-emerald-700">
+                <div className="mt-4 rounded-xl border border-success/20 bg-success/10 px-3.5 py-2.5 text-sm font-medium text-success">
                     {status}
                 </div>
             )}
@@ -63,7 +63,7 @@ export default function Login({
                 </Field>
 
                 <div className="flex items-center justify-between">
-                    <label className="flex items-center gap-2 text-sm text-slate-600">
+                    <label className="flex items-center gap-2 text-sm text-text">
                         <input
                             type="checkbox"
                             name="remember"
@@ -71,14 +71,14 @@ export default function Login({
                             onChange={(e) =>
                                 setData('remember', e.target.checked || false)
                             }
-                            className="h-4 w-4 rounded border-slate-300"
+                            className="h-4 w-4 rounded border-border"
                         />
                         Ingat saya
                     </label>
                     {canResetPassword && (
                         <Link
                             href={route('password.request')}
-                            className="text-sm font-medium text-indigo-600 hover:text-indigo-500"
+                            className="text-sm font-medium text-primary hover:text-primary"
                         >
                             Lupa password?
                         </Link>
@@ -95,7 +95,7 @@ export default function Login({
                 </Button>
             </form>
 
-            <p className="mt-6 text-center text-xs text-slate-400">
+            <p className="mt-6 text-center text-xs text-muted">
                 Akun dibuat oleh administrator sistem.
             </p>
         </GuestLayout>

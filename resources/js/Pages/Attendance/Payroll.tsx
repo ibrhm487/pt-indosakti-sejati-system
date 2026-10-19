@@ -57,7 +57,7 @@ export default function AttendancePayroll({
             {summary.by_user.length > 0 && (
                 <div className="mb-6">
                     <CardTable>
-                        <p className="px-4 pt-4 text-sm font-semibold text-slate-700">Rekap Per Orang</p>
+                        <p className="px-4 pt-4 text-sm font-semibold text-text">Rekap Per Orang</p>
                         <Table>
                             <THead>
                                 <TR>
@@ -82,7 +82,7 @@ export default function AttendancePayroll({
 
             <CardTable>
                 {rows.length === 0 ? (
-                    <p className="p-6 text-sm text-slate-400">Belum ada data absensi.</p>
+                    <p className="p-6 text-sm text-muted">Belum ada data absensi.</p>
                 ) : (
                     <Table>
                         <THead>

@@ -52,15 +52,15 @@ export default function Welcome({
     return (
         <>
             <Head title="Beranda" />
-            <div className="min-h-screen bg-slate-50 text-slate-700 antialiased">
+            <div className="min-h-screen bg-page text-text antialiased">
                 {/* Header */}
-                <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/80 backdrop-blur">
+                <header className="sticky top-0 z-30 border-b border-border/70 bg-surface/80 backdrop-blur">
                     <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
                         <div className="flex items-center gap-3">
-                            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-sm font-bold text-white shadow-sm">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary-hover text-sm font-bold text-white shadow-sm">
                                 IS
                             </div>
-                            <span className="text-sm font-semibold tracking-tight text-slate-900">
+                            <span className="text-sm font-semibold tracking-tight text-text">
                                 PT Indosakti Sejati
                             </span>
                         </div>
@@ -68,7 +68,7 @@ export default function Welcome({
                             {auth.user ? (
                                 <Link
                                     href={route('dashboard')}
-                                    className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-indigo-500"
+                                    className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-primary-hover"
                                 >
                                     Buka Dashboard
                                     <ArrowRight className="h-4 w-4" />
@@ -76,7 +76,7 @@ export default function Welcome({
                             ) : (
                                 <Link
                                     href={route('login')}
-                                    className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-indigo-500"
+                                    className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-primary-hover"
                                 >
                                     Masuk
                                 </Link>
@@ -87,18 +87,18 @@ export default function Welcome({
 
                 {/* Hero */}
                 <section className="relative overflow-hidden">
-                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-indigo-50/70 to-transparent" />
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent" />
                     <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
                         <div className="mx-auto max-w-2xl text-center">
-                            <span className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-white px-3 py-1 text-xs font-medium text-indigo-700 shadow-sm">
-                                <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
+                            <span className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-surface px-3 py-1 text-xs font-medium text-primary shadow-sm">
+                                <span className="h-1.5 w-1.5 rounded-full bg-primary/100" />
                                 Sistem Operasional Event Sampling
                             </span>
-                            <h1 className="mt-6 text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
+                            <h1 className="mt-6 text-4xl font-bold tracking-tight text-text sm:text-5xl">
                                 Kelola event sampling end-to-end dalam satu
                                 platform
                             </h1>
-                            <p className="mt-6 text-lg text-slate-600">
+                            <p className="mt-6 text-lg text-text">
                                 Dari perizinan sekolah, jadwal tim lapangan,
                                 gudang, hingga kitchen — semuanya terhubung dan
                                 terpantau secara real time.
@@ -110,7 +110,7 @@ export default function Welcome({
                                             ? route('dashboard')
                                             : route('login')
                                     }
-                                    className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 transition-colors hover:bg-indigo-500"
+                                    className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-primary/20 transition-colors hover:bg-primary-hover"
                                 >
                                     {auth.user
                                         ? 'Ke Dashboard'
@@ -124,18 +124,18 @@ export default function Welcome({
 
                 {/* Workflow */}
                 <section className="mx-auto max-w-7xl px-4 pb-8 sm:px-6 lg:px-8">
-                    <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
-                        <p className="mb-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    <div className="rounded-2xl border border-border bg-surface p-6 shadow-sm">
+                        <p className="mb-3 text-center text-xs font-semibold uppercase tracking-wider text-muted">
                             Alur Kerja Operasional
                         </p>
                         <div className="flex flex-wrap items-center justify-center gap-2">
                             {STEPS.map((step, index) => (
                                 <span key={step} className="flex items-center">
-                                    <span className="rounded-lg bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-700 ring-1 ring-slate-200">
+                                    <span className="rounded-lg bg-page px-3 py-1.5 text-sm font-medium text-text ring-1 ring-border">
                                         {step}
                                     </span>
                                     {index < STEPS.length - 1 && (
-                                        <ArrowRight className="mx-1 h-4 w-4 text-slate-300" />
+                                        <ArrowRight className="mx-1 h-4 w-4 text-muted/60" />
                                     )}
                                 </span>
                             ))}
@@ -146,10 +146,10 @@ export default function Welcome({
                 {/* Features */}
                 <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
                     <div className="mx-auto max-w-2xl text-center">
-                        <h2 className="text-3xl font-bold tracking-tight text-slate-900">
+                        <h2 className="text-3xl font-bold tracking-tight text-text">
                             Semua yang Anda butuhkan
                         </h2>
-                        <p className="mt-3 text-slate-600">
+                        <p className="mt-3 text-text">
                             Modul-modul yang saling terhubung untuk menjalankan
                             operasional event sampling tanpa ribet.
                         </p>
@@ -158,15 +158,15 @@ export default function Welcome({
                         {FEATURES.map((f) => (
                             <div
                                 key={f.title}
-                                className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm transition-shadow hover:shadow-md"
+                                className="rounded-2xl border border-border bg-surface p-6 shadow-sm transition-shadow hover:shadow-md"
                             >
-                                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
                                     <f.icon className="h-5 w-5" />
                                 </div>
-                                <h3 className="mt-4 text-base font-semibold text-slate-900">
+                                <h3 className="mt-4 text-base font-semibold text-text">
                                     {f.title}
                                 </h3>
-                                <p className="mt-1.5 text-sm text-slate-500">
+                                <p className="mt-1.5 text-sm text-muted">
                                     {f.desc}
                                 </p>
                             </div>
@@ -176,11 +176,11 @@ export default function Welcome({
 
                 {/* CTA */}
                 <section className="mx-auto max-w-7xl px-4 pb-20 sm:px-6 lg:px-8">
-                    <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-600 to-violet-600 px-6 py-14 text-center shadow-xl shadow-indigo-500/20 sm:px-12">
+                    <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-primary to-primary-hover px-6 py-14 text-center shadow-xl shadow-primary/20 sm:px-12">
                         <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
                             Siap mengoptimalkan operasional event Anda?
                         </h2>
-                        <p className="mx-auto mt-3 max-w-xl text-indigo-100">
+                        <p className="mx-auto mt-3 max-w-xl text-white/70">
                             Masuk untuk mulai mengelola seluruh siklus event
                             sampling. Akun dibuat oleh administrator sistem.
                         </p>
@@ -191,7 +191,7 @@ export default function Welcome({
                                         ? route('dashboard')
                                         : route('login')
                                 }
-                                className="inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-semibold text-indigo-700 shadow-sm transition-colors hover:bg-indigo-50"
+                                className="inline-flex items-center gap-2 rounded-xl bg-surface px-6 py-3 text-sm font-semibold text-primary shadow-sm transition-colors hover:bg-primary/10"
                             >
                                 <CheckCircle2 className="h-4 w-4" />
                                 {auth.user ? 'Ke Dashboard' : 'Masuk'}
@@ -200,13 +200,13 @@ export default function Welcome({
                     </div>
                 </section>
 
-                <footer className="border-t border-slate-200/70 bg-white">
+                <footer className="border-t border-border/70 bg-surface">
                     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
                         <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
-                            <p className="text-sm text-slate-500">
+                            <p className="text-sm text-muted">
                                 © {new Date().getFullYear()} PT Indosakti Sejati
                             </p>
-                            <p className="text-xs text-slate-400">
+                            <p className="text-xs text-muted">
                                 Sistem Operasional Event Sampling
                             </p>
                         </div>

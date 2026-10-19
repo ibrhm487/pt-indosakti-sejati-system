@@ -8,10 +8,10 @@ import { FormEvent, useState } from 'react';
 
 function ActiveCheckbox({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
     return (
-        <label className="flex items-center gap-2 text-sm text-slate-700">
+        <label className="flex items-center gap-2 text-sm text-text">
             <input
                 type="checkbox"
-                className="h-4 w-4 rounded border-slate-300"
+                className="h-4 w-4 rounded border-border"
                 checked={checked}
                 onChange={(e) => onChange(e.target.checked)}
             />
@@ -107,7 +107,7 @@ export default function AdminSettingsIndex({
             </Card>
 
             <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-slate-800">Tarif Shift</h3>
+                <h3 className="text-sm font-semibold text-text">Tarif Shift</h3>
                 <Button variant="primary" onClick={() => setAddOpen(true)}>
                     <Plus className="h-4 w-4" /> Tarif
                 </Button>
@@ -130,7 +130,7 @@ export default function AdminSettingsIndex({
                         <TBody>
                             {shiftRates.map((r: any) => (
                                 <TR key={r.id}>
-                                    <TD className="font-medium text-slate-800">{r.label}</TD>
+                                    <TD className="font-medium text-text">{r.label}</TD>
                                     <TD>{formatCurrency(r.rate)}</TD>
                                     <TD>{formatDate(r.effective_from)}</TD>
                                     <TD>

@@ -153,7 +153,7 @@ export default function ReportsByEvent({
                             </option>
                         ))}
                     </Select>
-                    <label className="flex flex-col gap-1 text-xs font-medium text-slate-500">
+                    <label className="flex flex-col gap-1 text-xs font-medium text-muted">
                         Dari Tanggal
                         <Input
                             type="date"
@@ -162,7 +162,7 @@ export default function ReportsByEvent({
                             onChange={(event) => setDateFrom(event.target.value)}
                         />
                     </label>
-                    <label className="flex flex-col gap-1 text-xs font-medium text-slate-500">
+                    <label className="flex flex-col gap-1 text-xs font-medium text-muted">
                         Sampai Tanggal
                         <Input
                             type="date"
@@ -212,17 +212,17 @@ export default function ReportsByEvent({
                                     {events.data.map((event) => (
                                         <TR key={event.id}>
                                             <TD>
-                                                <p className="font-medium text-slate-800">
+                                                <p className="font-medium text-text">
                                                     {event.event_name}
                                                 </p>
-                                                <p className="text-xs text-slate-400">
+                                                <p className="text-xs text-muted">
                                                     {event.event_code}
                                                 </p>
                                             </TD>
                                             <TD>{formatDate(event.event_date)}</TD>
                                             <TD>
                                                 <p>{event.brand ?? '-'}</p>
-                                                <p className="text-xs text-slate-400">
+                                                <p className="text-xs text-muted">
                                                     {event.venue ?? '-'}
                                                 </p>
                                             </TD>
@@ -249,7 +249,7 @@ export default function ReportsByEvent({
                                                         label={event.report.status_label}
                                                     />
                                                 ) : (
-                                                    <span className="text-sm text-slate-400">
+                                                    <span className="text-sm text-muted">
                                                         Belum ada laporan
                                                     </span>
                                                 )}
@@ -258,7 +258,7 @@ export default function ReportsByEvent({
                                                 {event.report && (
                                                     <Link
                                                         href={route('reports.show', event.report.id)}
-                                                        className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+                                                        className="text-sm font-medium text-primary hover:text-primary"
                                                     >
                                                         Detail
                                                     </Link>

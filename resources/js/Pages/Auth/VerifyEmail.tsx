@@ -15,10 +15,10 @@ export default function VerifyEmail({ status }: { status?: string }) {
         <GuestLayout>
             <Head title="Verifikasi Email" />
 
-            <h1 className="text-lg font-semibold tracking-tight text-slate-900">
+            <h1 className="text-lg font-semibold tracking-tight text-text">
                 Verifikasi email
             </h1>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-sm text-muted">
                 Terima kasih telah mendaftar. Sebelum memulai, silakan verifikasi
                 alamat email Anda dengan mengeklik tautan yang baru saja kami
                 kirimkan. Jika Anda tidak menerima emailnya, kami dengan senang
@@ -26,7 +26,7 @@ export default function VerifyEmail({ status }: { status?: string }) {
             </p>
 
             {status === 'verification-link-sent' && (
-                <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-sm font-medium text-emerald-700">
+                <div className="mt-4 rounded-xl border border-success/20 bg-success/10 px-3.5 py-2.5 text-sm font-medium text-success">
                     Tautan verifikasi baru telah dikirim ke alamat email yang
                     Anda berikan saat pendaftaran.
                 </div>
@@ -47,7 +47,7 @@ export default function VerifyEmail({ status }: { status?: string }) {
                         href={route('logout')}
                         method="post"
                         as="button"
-                        className="text-sm font-medium text-slate-500 hover:text-slate-700"
+                        className="text-sm font-medium text-muted hover:text-text"
                     >
                         Keluar
                     </Link>

@@ -9,28 +9,41 @@ import {
     ReactNode,
     useState,
 } from 'react';
-import { Button, Card, Input, Modal } from './ui';
+import { Button, Card, Input, Modal, Breadcrumb, type BreadcrumbItem } from './ui';
 
 export function PageHeader({
     title,
     subtitle,
+    breadcrumbs,
     children,
-}: PropsWithChildren<{ title: string; subtitle?: string }>) {
+}: PropsWithChildren<{
+    title: string;
+    subtitle?: string;
+    breadcrumbs?: BreadcrumbItem[];
+}>) {
     return (
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-                <h1 className="text-xl font-semibold text-slate-900">
-                    {title}
-                </h1>
-                {subtitle && (
-                    <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
+        <div className="mb-6">
+            {breadcrumbs && breadcrumbs.length > 0 && (
+                <Breadcrumb items={breadcrumbs} />
+            )}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-3">
+                    <span className="mt-1.5 h-9 w-1.5 shrink-0 rounded-full bg-primary" />
+                    <div>
+                        <h1 className="text-2xl font-bold tracking-tight text-text">
+                            {title}
+                        </h1>
+                        {subtitle && (
+                            <p className="mt-1 text-sm text-muted">{subtitle}</p>
+                        )}
+                    </div>
+                </div>
+                {children && (
+                    <div className="flex flex-wrap items-center gap-2">
+                        {children}
+                    </div>
                 )}
             </div>
-            {children && (
-                <div className="flex flex-wrap items-center gap-2">
-                    {children}
-                </div>
-            )}
         </div>
     );
 }
@@ -50,8 +63,8 @@ export function Pagination({ paginator }: { paginator: Paginator }) {
     if (links.length <= 3) return null;
 
     return (
-        <div className="flex flex-col items-center justify-between gap-3 border-t border-slate-100 px-4 py-3 sm:flex-row">
-            <p className="text-xs text-slate-500">
+        <div className="flex flex-col items-center justify-between gap-3 border-t border-border px-4 py-3 sm:flex-row">
+            <p className="text-xs text-muted">
                 {paginator.total
                     ? `Menampilkan ${paginator.from ?? 0}–${paginator.to ?? 0} dari ${paginator.total}`
                     : ''}
@@ -65,8 +78,8 @@ export function Pagination({ paginator }: { paginator: Paginator }) {
                         className={cn(
                             'inline-flex h-8 min-w-8 items-center justify-center rounded-md border px-2 text-xs',
                             link.active
-                                ? 'border-slate-900 bg-slate-900 text-white'
-                                : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
+                                ? 'border-primary bg-primary text-white'
+                                : 'border-border bg-surface text-muted hover:bg-page hover:text-text',
                             !link.url && 'pointer-events-none opacity-40',
                         )}
                         dangerouslySetInnerHTML={{ __html: link.label }}
@@ -118,9 +131,9 @@ export function Alert({
     onClose,
 }: PropsWithChildren<{ tone?: 'info' | 'success' | 'error'; onClose?: () => void }>) {
     const tones = {
-        info: 'border-sky-200 bg-sky-50 text-sky-800',
-        success: 'border-emerald-200 bg-emerald-50 text-emerald-800',
-        error: 'border-red-200 bg-red-50 text-red-800',
+        info: 'border-info/20 bg-info/10 text-info',
+        success: 'border-success/20 bg-success/10 text-success',
+        error: 'border-danger/20 bg-danger/10 text-danger',
     };
     const icons = {
         info: <Info className="h-4 w-4" />,
@@ -155,10 +168,13 @@ export function EmptyState({
     children,
 }: PropsWithChildren<{ title?: string; description?: string }>) {
     return (
-        <div className="flex flex-col items-center justify-center px-6 py-14 text-center">
-            <p className="text-sm font-medium text-slate-600">{title}</p>
+        <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
+            <span className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-page text-muted/60">
+                <Search className="h-6 w-6" />
+            </span>
+            <p className="text-sm font-medium text-text">{title}</p>
             {description && (
-                <p className="mt-1 max-w-sm text-sm text-slate-400">
+                <p className="mt-1 max-w-sm text-sm text-muted">
                     {description}
                 </p>
             )}
@@ -231,7 +247,7 @@ export function ConfirmButton({
                     </>
                 }
             >
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-muted">
                     {description ?? 'Tindakan ini tidak dapat dibatalkan.'}
                 </p>
             </Modal>
@@ -248,7 +264,7 @@ export function SearchInput({
 }) {
     return (
         <div className={cn('relative flex-1', containerClassName)}>
-            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
             <Input
                 className={cn('h-11 rounded-xl pl-10', className)}
                 {...props}
@@ -260,7 +276,7 @@ export function SearchInput({
 export function FilterCard({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
     return (
         <Card
-            className={cn('mb-4 rounded-2xl border-slate-200/80 p-4 shadow-sm', className)}
+            className={cn('mb-4 border-border p-4 shadow-sm', className)}
             {...props}
         />
     );
@@ -283,7 +299,7 @@ export function Tabs({
     onChange: (key: string) => void;
 }) {
     return (
-        <div className="flex flex-wrap gap-1 rounded-xl border border-slate-200/80 bg-slate-50 p-1">
+        <div className="flex flex-wrap gap-1 rounded-xl border border-border bg-page p-1">
             {items.map((item) => {
                 const isActive = item.key === active;
                 return (
@@ -294,8 +310,8 @@ export function Tabs({
                         className={cn(
                             'inline-flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors',
                             isActive
-                                ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200/70'
-                                : 'text-slate-600 hover:text-slate-900',
+                                ? 'bg-surface text-primary shadow-sm ring-1 ring-border'
+                                : 'text-muted hover:text-text',
                         )}
                     >
                         {item.icon}
@@ -305,8 +321,8 @@ export function Tabs({
                                 className={cn(
                                     'ml-0.5 rounded-full px-1.5 py-0.5 text-[11px] font-medium',
                                     isActive
-                                        ? 'bg-indigo-100 text-indigo-700'
-                                        : 'bg-slate-200/80 text-slate-600',
+                                        ? 'bg-primary/10 text-primary'
+                                        : 'bg-border/60 text-muted',
                                 )}
                             >
                                 {item.count}

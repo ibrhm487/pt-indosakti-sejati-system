@@ -17,16 +17,16 @@ export default function ForgotPassword({ status }: { status?: string }) {
         <GuestLayout>
             <Head title="Lupa Password" />
 
-            <h1 className="text-lg font-semibold tracking-tight text-slate-900">
+            <h1 className="text-lg font-semibold tracking-tight text-text">
                 Lupa password
             </h1>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-sm text-muted">
                 Masukkan email Anda dan kami akan mengirimkan tautan untuk
                 mengatur ulang password.
             </p>
 
             {status && (
-                <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-sm font-medium text-emerald-700">
+                <div className="mt-4 rounded-xl border border-success/20 bg-success/10 px-3.5 py-2.5 text-sm font-medium text-success">
                     {status}
                 </div>
             )}

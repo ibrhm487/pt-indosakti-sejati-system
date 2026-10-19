@@ -158,12 +158,12 @@ export default function KitchenShow({
             <Card className="rounded-xl">
                 <CardHeader className="flex items-center justify-between">
                     <CardTitle className="flex items-center gap-2">
-                        <ClipboardList className="h-4 w-4 text-slate-400" /> Riwayat Laporan Kitchen
+                        <ClipboardList className="h-4 w-4 text-muted" /> Riwayat Laporan Kitchen
                     </CardTitle>
                 </CardHeader>
                 <CardContent className={reports.length === 0 ? '' : 'p-0'}>
                     {reports.length === 0 ? (
-                        <p className="text-sm text-slate-400">Belum ada laporan.</p>
+                        <p className="text-sm text-muted">Belum ada laporan.</p>
                     ) : (
                         <Table>
                             <THead>
@@ -189,7 +189,7 @@ export default function KitchenShow({
                                                     href={r.photo_url}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
-                                                    className="text-xs text-indigo-600 hover:underline"
+                                                    className="text-xs text-primary hover:underline"
                                                 >
                                                     Lihat
                                                 </a>
@@ -203,7 +203,7 @@ export default function KitchenShow({
                                                     href={r.washing_photo_url}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
-                                                    className="text-xs text-indigo-600 hover:underline"
+                                                    className="text-xs text-primary hover:underline"
                                                 >
                                                     Lihat
                                                 </a>
@@ -310,8 +310,8 @@ export default function KitchenShow({
 function Detail({ label, value, className }: { label: string; value: any; className?: string }) {
     return (
         <div className={className}>
-            <dt className="text-xs uppercase tracking-wide text-slate-400">{label}</dt>
-            <dd className="mt-0.5 text-slate-800">{value || '-'}</dd>
+            <dt className="text-xs uppercase tracking-wide text-muted">{label}</dt>
+            <dd className="mt-0.5 text-text">{value || '-'}</dd>
         </div>
     );
 }
@@ -327,7 +327,7 @@ function PhotoPreview({
 }) {
     if (!url) {
         return (
-            <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-400">
+            <p className="mt-2 flex items-center gap-1.5 text-xs text-muted">
                 <ImageOff className="h-3.5 w-3.5" /> Belum ada foto dipilih
             </p>
         );
@@ -338,7 +338,7 @@ function PhotoPreview({
             <img
                 src={url}
                 alt={label}
-                className="h-36 w-full rounded-lg border border-slate-200 bg-slate-50 object-contain"
+                className="h-36 w-full rounded-lg border border-border bg-page object-contain"
             />
             <Button type="button" variant="outline" size="sm" onClick={onClear}>
                 <Trash2 className="h-3.5 w-3.5" /> Hapus Foto

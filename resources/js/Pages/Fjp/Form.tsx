@@ -64,8 +64,8 @@ function Section({
 }) {
     return (
         <div className="space-y-3">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
-                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted">
+                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-page text-muted">
                     {icon}
                 </span>
                 {title}
@@ -155,12 +155,12 @@ export function FjpFormFields({
                         />
                     </Field>
                 </div>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-muted">
                     Pilih sekolah dari Dapodik untuk mengisi NPSN, alamat, lokasi,
                     dan jumlah siswa otomatis. Dua nilai disimpan terpisah;
                     selisih dihitung sebagai Sekolah − Dapodik.
                 </p>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-muted">
                     Sumber jumlah siswa:{' '}
                     {data.jumlah_siswa_dapodik !== ''
                         ? data.dapodik_source || 'belum tersedia'
@@ -258,7 +258,7 @@ export function FjpFormFields({
                             onChange={(e) => setData('sampling_target', e.target.value)}
                         />
                     </Field>
-                    <label className="flex items-center gap-2 text-sm text-slate-700">
+                    <label className="flex items-center gap-2 text-sm text-text">
                         <Checkbox
                             checked={data.jug_required}
                             onChange={(e) => setData('jug_required', e.target.checked)}
@@ -266,7 +266,7 @@ export function FjpFormFields({
                         Butuh JUG (Just Use Gel)
                     </label>
                 </div>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-muted">
                     Target sampling adalah target cup untuk satu shift pelaksanaan
                     event ini. Nilai yang sama diwariskan ke event operasional.
                 </p>

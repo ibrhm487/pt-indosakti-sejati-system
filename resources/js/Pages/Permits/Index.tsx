@@ -143,11 +143,11 @@ export default function PermitsIndex({
                                         <TD>
                                             <Link
                                                 href={route('permits.show', p.id)}
-                                                className="font-medium text-slate-800 hover:text-indigo-600"
+                                                className="font-medium text-text hover:text-primary"
                                             >
                                                 {p.event ?? '-'}
                                             </Link>
-                                            <p className="font-mono text-xs text-slate-400">
+                                            <p className="font-mono text-xs text-muted">
                                                 {p.permit_number}
                                             </p>
                                         </TD>

@@ -282,29 +282,34 @@ export default function FjpIndex({
                                         <TD>
                                             <Link
                                                 href={route('fjp.show', f.id)}
-                                                className="font-medium text-slate-800 hover:text-indigo-600"
+                                                className="font-medium text-text hover:text-primary"
                                             >
                                                 {f.school_name || f.event_name}
                                             </Link>
-                                            <p className="font-mono text-xs text-slate-400">
+                                            <p className="font-mono text-xs text-muted">
                                                 NPSN {f.npsn || '-'} · {f.fjp_number}
                                             </p>
                                             {f.brand && (
-                                                <p className="text-xs text-slate-400">
+                                                <p className="text-xs text-muted">
                                                     {f.brand}
                                                 </p>
+                                            )}
+                                            {f.dapodik_source && String(f.dapodik_source).toLowerCase().includes('simulasi') && (
+                                                <span className="mt-1 inline-flex items-center rounded-full bg-warning/10 px-2 py-0.5 text-[10px] font-medium text-warning ring-1 ring-inset ring-warning/20">
+                                                    Data Simulasi/Demo
+                                                </span>
                                             )}
                                         </TD>
                                         <TD className="text-right">
                                             <div className="space-y-0.5 font-mono text-sm">
                                                 <p>
-                                                    <span className="mr-1 text-[11px] text-slate-400">
+                                                    <span className="mr-1 text-[11px] text-muted">
                                                         Sekolah
                                                     </span>
                                                     {formatNumber(f.sekolah)}
                                                 </p>
                                                 <p>
-                                                    <span className="mr-1 text-[11px] text-slate-400">
+                                                    <span className="mr-1 text-[11px] text-muted">
                                                         Dapodik
                                                     </span>
                                                     {formatNumber(f.dapodik)}
@@ -315,8 +320,8 @@ export default function FjpIndex({
                                                             className={cn(
                                                                 'text-[11px]',
                                                                 f.difference > 0
-                                                                    ? 'text-amber-600'
-                                                                    : 'text-sky-600',
+                                                                    ? 'text-warning'
+                                                                    : 'text-info',
                                                             )}
                                                         >
                                                             selisih{' '}
@@ -384,7 +389,7 @@ export default function FjpIndex({
                                                         target="_blank"
                                                         rel="noreferrer"
                                                         title="Buka di Google Maps"
-                                                        className="text-indigo-600 hover:text-indigo-500"
+                                                        className="text-primary hover:text-primary"
                                                     >
                                                         <MapPin className="h-4 w-4" />
                                                     </a>
@@ -395,14 +400,14 @@ export default function FjpIndex({
                                             {f.attachments_count > 0 ? (
                                                 <Link
                                                     href={route('fjp.show', f.id)}
-                                                    className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600 hover:bg-indigo-50 hover:text-indigo-700"
+                                                    className="inline-flex items-center gap-1.5 rounded-lg bg-page px-2 py-1 text-xs font-medium text-text hover:bg-primary/10 hover:text-primary"
                                                     title="Buka lampiran surat izin"
                                                 >
                                                     <Paperclip className="h-3.5 w-3.5" />
                                                     {f.attachments_count} berkas
                                                 </Link>
                                             ) : (
-                                                <span className="text-xs text-slate-300">—</span>
+                                                <span className="text-xs text-muted/60">—</span>
                                             )}
                                         </TD>
                                         <TD className="text-right">
@@ -430,7 +435,7 @@ export default function FjpIndex({
                                                             )
                                                         }
                                                     >
-                                                        <Trash2 className="h-4 w-4 text-red-600" />
+                                                        <Trash2 className="h-4 w-4 text-danger" />
                                                     </ConfirmButton>
                                                 )}
                                             </div>

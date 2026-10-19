@@ -57,7 +57,7 @@ export default function ReturnsIndex({
                             <TBody>
                                 {returns.data.map((r) => (
                                     <TR key={r.id}>
-                                        <TD className="font-medium text-slate-800">{r.return_number}</TD>
+                                        <TD className="font-medium text-text">{r.return_number}</TD>
                                         <TD>{r.mrv_number ?? '-'}</TD>
                                         <TD>{r.event ?? '-'}</TD>
                                         <TD>
@@ -69,11 +69,11 @@ export default function ReturnsIndex({
                                         <TD>{r.recorded_by ?? '-'}</TD>
                                         <TD>
                                             {r.photo_url ? (
-                                                <a href={r.photo_url} target="_blank" rel="noreferrer" className="text-sm font-medium text-blue-600 hover:underline">
+                                                <a href={r.photo_url} target="_blank" rel="noreferrer" className="text-sm font-medium text-primary hover:underline">
                                                     Lihat Foto
                                                 </a>
                                             ) : (
-                                                <span className="text-xs text-slate-400">—</span>
+                                                <span className="text-xs text-muted">—</span>
                                             )}
                                         </TD>
                                     </TR>

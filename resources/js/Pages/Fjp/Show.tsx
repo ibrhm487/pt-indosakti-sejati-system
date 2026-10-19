@@ -165,7 +165,7 @@ export default function FjpShow({
             </PageHeader>
 
             {pageErrors.permit_status && (
-                <p className="mb-4 rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
+                <p className="mb-4 rounded-xl bg-danger/10 px-3.5 py-2.5 text-sm text-danger">
                     {pageErrors.permit_status}
                 </p>
             )}
@@ -182,19 +182,19 @@ export default function FjpShow({
                             <Detail label="NPSN" value={fjp.npsn} />
                             <Detail label="Alamat" value={fjp.address} className="col-span-2" />
                             <div className="col-span-2">
-                                <dt className="text-xs uppercase tracking-wide text-slate-400">Link Lokasi</dt>
+                                <dt className="text-xs uppercase tracking-wide text-muted">Link Lokasi</dt>
                                 <dd className="mt-0.5">
                                     {fjp.maps_url ? (
                                         <a
                                             href={fjp.maps_url}
                                             target="_blank"
                                             rel="noreferrer"
-                                            className="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-500"
+                                            className="inline-flex items-center gap-1 text-primary hover:text-primary"
                                         >
                                             <MapPin className="h-4 w-4" /> Buka di Google Maps
                                         </a>
                                     ) : (
-                                        <span className="text-slate-800">-</span>
+                                        <span className="text-text">-</span>
                                     )}
                                 </dd>
                             </div>
@@ -202,12 +202,12 @@ export default function FjpShow({
                         </dl>
 
                         {fjp.rejection_reason && (
-                            <p className="mt-4 rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
+                            <p className="mt-4 rounded-xl bg-danger/10 px-3.5 py-2.5 text-sm text-danger">
                                 Alasan penolakan: {fjp.rejection_reason}
                             </p>
                         )}
                         {fjp.cancellation_reason && (
-                            <p className="mt-4 rounded-xl bg-amber-50 px-3.5 py-2.5 text-sm text-amber-700">
+                            <p className="mt-4 rounded-xl bg-warning/10 px-3.5 py-2.5 text-sm text-warning">
                                 Alasan pembatalan: {fjp.cancellation_reason}
                             </p>
                         )}
@@ -225,24 +225,31 @@ export default function FjpShow({
                     </CardHeader>
                     <CardContent className="space-y-4 text-sm">
                         <div className="flex items-center justify-between">
-                            <span className="text-slate-500">Versi Sekolah</span>
+                            <span className="text-muted">Versi Sekolah</span>
                             <span className="font-semibold">{formatNumber(fjp.jumlah_siswa_sekolah)}</span>
                         </div>
                         <div className="flex items-center justify-between">
-                            <span className="text-slate-500">Versi Dapodik</span>
+                            <span className="text-muted">Versi Dapodik</span>
                             <span className="font-semibold">{formatNumber(fjp.jumlah_siswa_dapodik)}</span>
                         </div>
-                        <div className="flex items-center justify-between border-t border-slate-100 pt-4">
-                            <span className="text-slate-500">Selisih (Sekolah − Dapodik)</span>
+                        <div className="flex items-center justify-between border-t border-border pt-4">
+                            <span className="text-muted">Selisih (Sekolah − Dapodik)</span>
                             <span className="font-semibold">
                                 {fjp.difference === null ? 'Belum lengkap' : formatNumber(fjp.difference)}
                             </span>
                         </div>
                         {fjp.dapodik_source && (
-                            <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                                Sumber Dapodik: {fjp.dapodik_source}
-                                {fjp.dapodik_synced_at ? ` · ${formatDateTime(fjp.dapodik_synced_at)}` : ''}
-                            </p>
+                            <>
+                                <p className="rounded-md bg-warning/10 px-3 py-2 text-xs text-warning">
+                                    Sumber Dapodik: {fjp.dapodik_source}
+                                    {fjp.dapodik_synced_at ? ` · ${formatDateTime(fjp.dapodik_synced_at)}` : ''}
+                                </p>
+                                {String(fjp.dapodik_source).toLowerCase().includes('simulasi') && (
+                                    <p className="rounded-md bg-warning/10 px-3 py-2 text-xs text-warning border border-warning/20">
+                                        Data Simulasi/Demo (bukan data resmi Dapodik)
+                                    </p>
+                                )}
+                            </>
                         )}
                     </CardContent>
                 </Card>
@@ -259,7 +266,7 @@ export default function FjpShow({
                 </CardHeader>
                 <CardContent>
                     {pageErrors.event && (
-                        <p className="mb-4 rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
+                        <p className="mb-4 rounded-xl bg-danger/10 px-3.5 py-2.5 text-sm text-danger">
                             {pageErrors.event}
                         </p>
                     )}
@@ -288,11 +295,11 @@ export default function FjpShow({
                                         <TD>
                                             <Link
                                                 href={e.url}
-                                                className="font-medium text-slate-800 hover:text-indigo-600"
+                                                className="font-medium text-text hover:text-primary"
                                             >
                                                 {e.event_name}
                                             </Link>
-                                            <p className="font-mono text-xs text-slate-400">
+                                            <p className="font-mono text-xs text-muted">
                                                 {e.event_code}
                                             </p>
                                         </TD>
@@ -303,7 +310,7 @@ export default function FjpShow({
                                         <TD className="text-right">
                                             <Link
                                                 href={e.url}
-                                                className="text-xs font-medium text-indigo-600 hover:underline"
+                                                className="text-xs font-medium text-primary hover:underline"
                                             >
                                                 Detail
                                             </Link>
@@ -385,19 +392,19 @@ export default function FjpShow({
                     ) : (
                         <ol className="space-y-3">
                             {history.map((h) => (
-                                <li key={h.id} className="flex items-start justify-between gap-4 rounded-xl bg-slate-50 px-3.5 py-2.5 text-sm">
+                                <li key={h.id} className="flex items-start justify-between gap-4 rounded-xl bg-page px-3.5 py-2.5 text-sm">
                                     <div>
-                                        <p className="font-medium text-slate-800">
+                                        <p className="font-medium text-text">
                                             {HISTORY_LABELS[h.action] ?? h.action}
                                         </p>
                                         {h.reason && (
-                                            <p className="mt-0.5 text-xs text-slate-500">
+                                            <p className="mt-0.5 text-xs text-muted">
                                                 Alasan: {h.reason}
                                             </p>
                                         )}
                                     </div>
-                                    <div className="shrink-0 text-right text-xs text-slate-500">
-                                        <p className="font-medium text-slate-700">{h.user ?? 'Sistem'}</p>
+                                    <div className="shrink-0 text-right text-xs text-muted">
+                                        <p className="font-medium text-text">{h.user ?? 'Sistem'}</p>
                                         <p>{formatDateTime(h.created_at)}</p>
                                     </div>
                                 </li>
@@ -490,8 +497,8 @@ export default function FjpShow({
 function Detail({ label, value, className }: { label: string; value: any; className?: string }) {
     return (
         <div className={className}>
-            <dt className="text-xs uppercase tracking-wide text-slate-400">{label}</dt>
-            <dd className="mt-0.5 text-slate-800">{value || '-'}</dd>
+            <dt className="text-xs uppercase tracking-wide text-muted">{label}</dt>
+            <dd className="mt-0.5 text-text">{value || '-'}</dd>
         </div>
     );
 }

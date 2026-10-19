@@ -4,8 +4,8 @@ export interface AuthUser {
     email: string;
     email_verified_at?: string | null;
     phone?: string | null;
-    roles: { slug: string; name: string }[];
-    active_role?: { slug: string; name: string } | null;
+    roles: { id: number; slug: string; name: string }[];
+    active_role?: { id?: number; slug: string; name: string } | null;
 }
 
 export interface FlashProps {

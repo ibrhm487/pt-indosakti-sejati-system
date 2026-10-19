@@ -147,16 +147,16 @@ export default function InventoryIndex({
                                 {products.map((p) => (
                                     <TR key={p.id}>
                                         <TD>
-                                            <p className="font-medium text-slate-800">{p.name}</p>
-                                            <p className="text-xs text-slate-400">
+                                            <p className="font-medium text-text">{p.name}</p>
+                                            <p className="text-xs text-muted">
                                                 {p.sku} · {p.brand ?? '-'}
                                             </p>
                                         </TD>
                                         <TD>{p.category ?? '-'}</TD>
-                                        <TD className="text-right text-emerald-700">
+                                        <TD className="text-right text-success">
                                             {formatNumber(p.stock_in)}
                                         </TD>
-                                        <TD className="text-right text-red-600">
+                                        <TD className="text-right text-danger">
                                             {formatNumber(p.stock_out)}
                                         </TD>
                                         <TD className="text-right font-medium">{formatNumber(p.on_hand)}</TD>

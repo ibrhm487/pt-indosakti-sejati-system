@@ -127,9 +127,9 @@ export default function AdminUsersIndex({
                                 {users.data.map((u: UserRow) => (
                                     <TR key={u.id}>
                                         <TD>
-                                            <p className="font-medium text-slate-800">{u.name}</p>
-                                            <p className="text-xs text-slate-400">{u.email}</p>
-                                            {u.phone && <p className="text-xs text-slate-400">{u.phone}</p>}
+                                            <p className="font-medium text-text">{u.name}</p>
+                                            <p className="text-xs text-muted">{u.email}</p>
+                                            {u.phone && <p className="text-xs text-muted">{u.phone}</p>}
                                         </TD>
                                         <TD>
                                             <div className="flex flex-wrap gap-1">

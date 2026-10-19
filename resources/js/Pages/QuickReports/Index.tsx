@@ -89,24 +89,24 @@ export default function QuickReportsIndex({
                                     <img
                                         src={report.photo_url}
                                         alt={`Bukti foto: ${report.title}`}
-                                        className="h-56 w-full bg-slate-100 object-cover"
+                                        className="h-56 w-full bg-page object-cover"
                                         loading="lazy"
                                     />
                                 )}
                                 <div className="space-y-2 p-5">
                                     <div className="flex flex-wrap items-start justify-between gap-2">
-                                        <h2 className="font-semibold text-slate-900">
+                                        <h2 className="font-semibold text-text">
                                             {report.title}
                                         </h2>
-                                        <time className="text-xs text-slate-400">
+                                        <time className="text-xs text-muted">
                                             {formatDateTime(report.created_at)}
                                         </time>
                                     </div>
-                                    <p className="text-sm text-slate-600">
+                                    <p className="text-sm text-text">
                                         {report.body || 'Tidak ada catatan tambahan.'}
                                     </p>
-                                    <div className="border-t border-slate-100 pt-2 text-xs text-slate-500">
-                                        <span className="font-medium text-slate-700">
+                                    <div className="border-t border-border pt-2 text-xs text-muted">
+                                        <span className="font-medium text-text">
                                             {report.event ?? 'Event'}
                                         </span>
                                         {report.event_date && ` · ${report.event_date}`}

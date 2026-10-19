@@ -57,8 +57,8 @@ function Section({
 }) {
     return (
         <div className="space-y-3">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
-                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted">
+                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-page text-muted">
                     {icon}
                 </span>
                 {title}

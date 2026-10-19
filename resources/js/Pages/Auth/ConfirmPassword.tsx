@@ -19,10 +19,10 @@ export default function ConfirmPassword() {
         <GuestLayout>
             <Head title="Konfirmasi Password" />
 
-            <h1 className="text-lg font-semibold tracking-tight text-slate-900">
+            <h1 className="text-lg font-semibold tracking-tight text-text">
                 Konfirmasi password
             </h1>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-sm text-muted">
                 Ini adalah area aman aplikasi. Silakan konfirmasi password Anda
                 sebelum melanjutkan.
             </p>

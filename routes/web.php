@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ActiveRoleController;
 use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\MasterDataController;
 use App\Http\Controllers\Admin\PersonnelController;
@@ -30,6 +31,9 @@ Route::redirect('/', '/dashboard');
 
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    // Active role switching (workspace menu + data scoping follow this role)
+    Route::post('/active-role', [ActiveRoleController::class, 'update'])->name('role.switch');
 
     // ---------------------------------------------------------------------
     // Workspaces (UI shell)

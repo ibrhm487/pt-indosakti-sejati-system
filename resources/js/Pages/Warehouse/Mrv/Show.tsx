@@ -126,8 +126,8 @@ export default function MrvShow({
                                 {items.map((item) => (
                                     <TR key={item.id}>
                                         <TD>
-                                            <p className="font-medium text-slate-800">{item.product ?? '-'}</p>
-                                            <p className="text-xs text-slate-400">{item.sku}</p>
+                                            <p className="font-medium text-text">{item.product ?? '-'}</p>
+                                            <p className="text-xs text-muted">{item.sku}</p>
                                         </TD>
                                         <TD className="text-right">
                                             {formatNumber(item.quantity_requested)} {item.unit}
@@ -148,55 +148,55 @@ export default function MrvShow({
                     </CardHeader>
                     <CardContent className="space-y-3 text-sm">
                         <div className="flex items-center justify-between">
-                            <span className="text-slate-500">Status</span>
+                            <span className="text-muted">Status</span>
                             <StatusBadge status={mrv.status} label={mrv.status_label} />
                         </div>
                         <div className="flex items-center justify-between">
-                            <span className="text-slate-500">Pemohon</span>
+                            <span className="text-muted">Pemohon</span>
                             <span>{mrv.requester ?? '-'}</span>
                         </div>
                         <div className="flex items-center justify-between">
-                            <span className="text-slate-500">Penyetuju</span>
+                            <span className="text-muted">Penyetuju</span>
                             <span>{mrv.approver ?? '-'}</span>
                         </div>
                         <div className="flex items-center justify-between">
-                            <span className="text-slate-500">Disetujui</span>
+                            <span className="text-muted">Disetujui</span>
                             <span>{formatDateTime(mrv.approved_at)}</span>
                         </div>
                         <div className="flex items-center justify-between">
-                            <span className="text-slate-500">Dikeluarkan</span>
+                            <span className="text-muted">Dikeluarkan</span>
                             <span>{formatDateTime(mrv.issued_at)}</span>
                         </div>
                         {mrv.recipient && (
                             <div className="flex items-center justify-between">
-                                <span className="text-slate-500">Penerima</span>
+                                <span className="text-muted">Penerima</span>
                                 <span>{mrv.recipient}</span>
                             </div>
                         )}
                         {mrv.photo_url && (
                             <div className="flex items-center justify-between">
-                                <span className="text-slate-500">Foto Bukti Keluar</span>
-                                <a href={mrv.photo_url} target="_blank" rel="noreferrer" className="text-sm font-medium text-blue-600 hover:underline">
+                                <span className="text-muted">Foto Bukti Keluar</span>
+                                <a href={mrv.photo_url} target="_blank" rel="noreferrer" className="text-sm font-medium text-primary hover:underline">
                                     Lihat Foto
                                 </a>
                             </div>
                         )}
                         {mrv.notes && (
                             <div>
-                                <p className="text-slate-500">Catatan</p>
+                                <p className="text-muted">Catatan</p>
                                 <p className="mt-1">{mrv.notes}</p>
                             </div>
                         )}
                         {mrv.rejection_reason && (
                             <div>
-                                <p className="text-slate-500">Alasan penolakan</p>
-                                <p className="mt-1 text-red-600">{mrv.rejection_reason}</p>
+                                <p className="text-muted">Alasan penolakan</p>
+                                <p className="mt-1 text-danger">{mrv.rejection_reason}</p>
                             </div>
                         )}
 
                         {returns.length > 0 && (
-                            <div className="border-t border-slate-100 pt-3">
-                                <p className="mb-2 text-slate-500">Pengembalian</p>
+                            <div className="border-t border-border pt-3">
+                                <p className="mb-2 text-muted">Pengembalian</p>
                                 <div className="flex flex-wrap gap-1">
                                     {returns.map((r) => (
                                         <Badge key={r.id} variant="outline">
@@ -262,7 +262,7 @@ export default function MrvShow({
                                 type="file"
                                 accept="image/jpeg,image/png,image/webp"
                                 onChange={(e) => issueForm.setData('photo', e.target.files?.[0] ?? null)}
-                                className="block w-full cursor-pointer rounded-lg border border-slate-200 bg-white text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-slate-700"
+                                className="block w-full cursor-pointer rounded-lg border border-border bg-surface text-sm text-text file:mr-3 file:rounded-lg file:border-0 file:bg-page file:px-3 file:py-2 file:text-text"
                             />
                         </Field>
                     </div>

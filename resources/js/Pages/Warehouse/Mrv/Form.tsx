@@ -1,3 +1,4 @@
+import { PageHeader } from '@/Components/AppBits';
 import { Button, Card, CardContent, CardHeader, CardTitle, Field, Input, Select, Table, TBody, TD, TH, THead, TR, Textarea } from '@/Components/ui';
 import AppLayout from '@/Layouts/AppLayout';
 import { Head, Link, useForm } from '@inertiajs/react';
@@ -43,6 +44,14 @@ export default function MrvForm({
     return (
         <AppLayout title="Buat MRV">
             <Head title="Buat MRV" />
+            <PageHeader
+                title="Buat MRV"
+                subtitle="Ajukan permintaan barang dari gudang untuk sebuah event."
+                breadcrumbs={[
+                    { label: 'MRV', href: route('warehouse.mrv.index') },
+                    { label: 'Buat' },
+                ]}
+            />
             <form onSubmit={submit}>
                 <Card className="mb-6">
                     <CardHeader>
@@ -117,7 +126,7 @@ export default function MrvForm({
                                                     size="icon"
                                                     onClick={() => removeRow(index)}
                                                 >
-                                                    <Trash2 className="h-4 w-4 text-red-500" />
+                                                    <Trash2 className="h-4 w-4 text-danger" />
                                                 </Button>
                                             )}
                                         </TD>
@@ -125,7 +134,7 @@ export default function MrvForm({
                                 ))}
                             </TBody>
                         </Table>
-                        {errors.items && <p className="mt-2 text-xs text-red-600">{errors.items}</p>}
+                        {errors.items && <p className="mt-2 text-xs text-danger">{errors.items}</p>}
                     </CardContent>
                 </Card>
 

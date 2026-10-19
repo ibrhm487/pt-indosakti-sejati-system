@@ -98,39 +98,39 @@ export default function InventoryMovements({
                     <CardContent>
                         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-7">
                             <div>
-                                <p className="text-xs text-slate-500">Stok Awal</p>
-                                <p className="mt-1 text-lg font-semibold text-slate-800">
+                                <p className="text-xs text-muted">Stok Awal</p>
+                                <p className="mt-1 text-lg font-semibold text-text">
                                     {summary.opening === null ? '—' : formatNumber(summary.opening)}
                                 </p>
                             </div>
                             <div>
-                                <p className="text-xs text-slate-500">Barang Masuk</p>
-                                <p className="mt-1 text-lg font-semibold text-emerald-600">+{formatNumber(summary.stock_in)}</p>
+                                <p className="text-xs text-muted">Barang Masuk</p>
+                                <p className="mt-1 text-lg font-semibold text-success">+{formatNumber(summary.stock_in)}</p>
                             </div>
                             <div>
-                                <p className="text-xs text-slate-500">Barang Keluar</p>
-                                <p className="mt-1 text-lg font-semibold text-red-600">-{formatNumber(summary.stock_out)}</p>
+                                <p className="text-xs text-muted">Barang Keluar</p>
+                                <p className="mt-1 text-lg font-semibold text-danger">-{formatNumber(summary.stock_out)}</p>
                             </div>
                             <div>
-                                <p className="text-xs text-slate-500">Pengembalian</p>
-                                <p className="mt-1 text-lg font-semibold text-emerald-600">+{formatNumber(summary.returned)}</p>
+                                <p className="text-xs text-muted">Pengembalian</p>
+                                <p className="mt-1 text-lg font-semibold text-success">+{formatNumber(summary.returned)}</p>
                             </div>
                             <div>
-                                <p className="text-xs text-slate-500">Rusak</p>
-                                <p className="mt-1 text-lg font-semibold text-amber-600">{formatNumber(summary.damaged)}</p>
+                                <p className="text-xs text-muted">Rusak</p>
+                                <p className="mt-1 text-lg font-semibold text-warning">{formatNumber(summary.damaged)}</p>
                             </div>
                             <div>
-                                <p className="text-xs text-slate-500">Penyesuaian</p>
-                                <p className="mt-1 text-lg font-semibold text-slate-600">{formatNumber(summary.adjustments)}</p>
+                                <p className="text-xs text-muted">Penyesuaian</p>
+                                <p className="mt-1 text-lg font-semibold text-text">{formatNumber(summary.adjustments)}</p>
                             </div>
                             <div>
-                                <p className="text-xs text-slate-500">Saldo Saat Ini</p>
-                                <p className="mt-1 text-lg font-semibold text-slate-900">
+                                <p className="text-xs text-muted">Saldo Saat Ini</p>
+                                <p className="mt-1 text-lg font-semibold text-text">
                                     {formatNumber(summary.on_hand)} {summary.unit}
                                 </p>
                             </div>
                         </div>
-                        <p className="mt-3 text-xs text-slate-400">
+                        <p className="mt-3 text-xs text-muted">
                             Stok awal dihitung dari saldo mutasi pertama produk; tampilkan “—” bila derivasi tidak tersedia.
                             Saldo adalah sumber kebenaran dari database, bukan perhitungan frontend.
                         </p>
@@ -160,8 +160,8 @@ export default function InventoryMovements({
                                     <TR key={m.id}>
                                         <TD>{formatDateTime(m.at)}</TD>
                                         <TD>
-                                            <p className="font-medium text-slate-800">{m.product ?? '-'}</p>
-                                            <p className="text-xs text-slate-400">{m.sku}</p>
+                                            <p className="font-medium text-text">{m.product ?? '-'}</p>
+                                            <p className="text-xs text-muted">{m.sku}</p>
                                         </TD>
                                         <TD>{m.type_label}</TD>
                                         <TD className="text-right">{formatNumber(m.quantity)}</TD>

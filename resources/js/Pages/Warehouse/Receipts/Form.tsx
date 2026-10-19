@@ -1,4 +1,5 @@
 import ReceiptForm, { RecentMovement, ReceiptProduct } from '@/Components/ReceiptForm';
+import { Head } from '@inertiajs/react';
 
 export default function ReceiptFormPage({
     products,
@@ -7,5 +8,10 @@ export default function ReceiptFormPage({
     products: ReceiptProduct[];
     recentMovements?: RecentMovement[];
 }) {
-    return <ReceiptForm products={products} recentMovements={recentMovements} />;
+    return (
+        <>
+            <Head title="Barang Masuk Baru" />
+            <ReceiptForm products={products} recentMovements={recentMovements} />
+        </>
+    );
 }

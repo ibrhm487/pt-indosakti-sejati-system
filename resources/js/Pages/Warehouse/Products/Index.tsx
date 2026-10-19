@@ -140,15 +140,15 @@ export default function ProductsIndex({
                                 {products.data.map((p) => (
                                     <TR key={p.id}>
                                         <TD>
-                                            <p className="font-medium text-slate-800">{p.name}</p>
-                                            <p className="text-xs text-slate-400">
+                                            <p className="font-medium text-text">{p.name}</p>
+                                            <p className="text-xs text-muted">
                                                 {p.sku} · {p.brand ?? '-'}
                                             </p>
                                         </TD>
                                         <TD>{p.category ?? '-'}</TD>
                                         <TD className="text-right">
                                             {formatNumber(p.on_hand)} {p.unit}
-                                            <span className="block text-xs text-slate-400">
+                                            <span className="block text-xs text-muted">
                                                 min {formatNumber(p.minimum_stock)}
                                             </span>
                                         </TD>

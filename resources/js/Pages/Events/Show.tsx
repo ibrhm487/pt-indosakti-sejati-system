@@ -328,7 +328,7 @@ export default function EventsShow({
             </PageHeader>
 
             {errors?.close && (
-                <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                <div className="mb-4 rounded-md border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">
                     {errors.close}
                 </div>
             )}
@@ -478,20 +478,20 @@ function RingkasanTab({
             <Card>
                 <CardHeader className="flex items-center justify-between">
                     <CardTitle>Kesiapan Event</CardTitle>
-                    <span className="text-sm font-semibold text-slate-800">
+                    <span className="text-sm font-semibold text-text">
                         {readiness.percentage}%
                     </span>
                 </CardHeader>
                 <CardContent className="space-y-4 text-sm">
-                    <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-page">
                         <div
-                            className="h-full rounded-full bg-emerald-500 transition-all"
+                            className="h-full rounded-full bg-success/100 transition-all"
                             style={{ width: `${readiness.percentage}%` }}
                         />
                     </div>
                     {Object.entries(readiness.modules).map(([key, value]) => (
                         <div key={key} className="flex items-center justify-between">
-                            <span className="text-slate-500">{MODULE_LABELS[key] ?? key}</span>
+                            <span className="text-muted">{MODULE_LABELS[key] ?? key}</span>
                             <Badge variant={MODULE_VARIANTS[value] ?? 'default'}>
                                 {value.toLowerCase()}
                             </Badge>
@@ -545,6 +545,13 @@ function FjpTab({ fjp, permit }: { fjp: any | null; permit: any | null }) {
                             <Detail label="Jumlah Siswa (Dapodik)" value={formatNumber(fjp.jumlah_siswa_dapodik)} />
                             <Detail label="Selisih" value={formatNumber(fjp.difference)} />
                             <Detail label="Sumber Dapodik" value={fjp.dapodik_source} />
+                            {fjp.dapodik_source && String(fjp.dapodik_source).toLowerCase().includes('simulasi') && (
+                                <div className="col-span-2">
+                                    <span className="inline-flex items-center rounded-full bg-warning/10 px-2.5 py-1 text-xs font-medium text-warning ring-1 ring-inset ring-warning/20">
+                                        Data Simulasi/Demo (bukan data resmi Dapodik)
+                                    </span>
+                                </div>
+                            )}
                             <Detail label="Sinkron Dapodik" value={formatDateTime(fjp.dapodik_synced_at)} />
                             <Detail
                                 label="Alamat"
@@ -559,7 +566,7 @@ function FjpTab({ fjp, permit }: { fjp: any | null; permit: any | null }) {
                                             href={fjp.maps_url}
                                             target="_blank"
                                             rel="noreferrer"
-                                            className="text-indigo-600 hover:underline"
+                                            className="text-primary hover:underline"
                                         >
                                             Buka lokasi
                                         </a>
@@ -606,29 +613,29 @@ function FjpTab({ fjp, permit }: { fjp: any | null; permit: any | null }) {
                                 )}
                             </dl>
                             <div>
-                                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
                                     Dokumen
                                 </p>
                                 {permit.documents.length === 0 ? (
-                                    <p className="text-slate-400">Belum ada dokumen.</p>
+                                    <p className="text-muted">Belum ada dokumen.</p>
                                 ) : (
-                                    <ul className="divide-y divide-slate-100 rounded-lg border border-slate-100">
+                                    <ul className="divide-y divide-border/70 rounded-lg border border-border">
                                         {permit.documents.map((d: any) => (
                                             <li
                                                 key={d.id}
                                                 className="flex items-center justify-between px-3 py-2"
                                             >
                                                 <div className="min-w-0">
-                                                    <p className="truncate text-slate-700">
+                                                    <p className="truncate text-text">
                                                         {d.original_name}
                                                     </p>
-                                                    <p className="text-xs text-slate-400">
+                                                    <p className="text-xs text-muted">
                                                         {d.category} · v{d.version}
                                                     </p>
                                                 </div>
                                                 <a
                                                     href={d.url}
-                                                    className="text-xs font-medium text-indigo-600 hover:underline"
+                                                    className="text-xs font-medium text-primary hover:underline"
                                                 >
                                                     Unduh
                                                 </a>
@@ -640,7 +647,7 @@ function FjpTab({ fjp, permit }: { fjp: any | null; permit: any | null }) {
                             {permit.status === 'submitted' && (
                                 <Link
                                     href={route('permits.show', permit.id)}
-                                    className="inline-block text-xs font-medium text-indigo-600 hover:underline"
+                                    className="inline-block text-xs font-medium text-primary hover:underline"
                                 >
                                     Buka halaman perizinan
                                 </Link>
@@ -704,18 +711,18 @@ function TimTab({
                                             {m.attendance ? (
                                                 <div className="flex items-center gap-2 text-xs">
                                                     {m.attendance.is_complete ? (
-                                                        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                                                        <CheckCircle2 className="h-4 w-4 text-success" />
                                                     ) : (
-                                                        <XCircle className="h-4 w-4 text-amber-500" />
+                                                        <XCircle className="h-4 w-4 text-warning" />
                                                     )}
-                                                    <span className="text-slate-500">
+                                                    <span className="text-muted">
                                                         {m.attendance.check_in_at
                                                             ? `Masuk ${formatDateTime(m.attendance.check_in_at)}`
                                                             : 'Belum absen'}
                                                     </span>
                                                 </div>
                                             ) : (
-                                                <span className="text-xs text-slate-400">-</span>
+                                                <span className="text-xs text-muted">-</span>
                                             )}
                                         </TD>
                                         <TD className="text-right">
@@ -729,7 +736,7 @@ function TimTab({
                                                         confirmLabel="Hapus"
                                                         onConfirm={() => onRemove(m.id)}
                                                     >
-                                                        <Trash2 className="h-4 w-4 text-red-500" />
+                                                        <Trash2 className="h-4 w-4 text-danger" />
                                                     </ConfirmButton>
                                                 </div>
                                             )}
@@ -764,7 +771,7 @@ function TimTab({
                                 {attendances.map((a) => (
                                     <TR key={a.id}>
                                         <TD>{a.user ?? '-'}</TD>
-                                        <TD className="text-xs text-slate-500">
+                                        <TD className="text-xs text-muted">
                                             {formatDateTime(a.planned_start)} –{' '}
                                             {formatDateTime(a.planned_end)}
                                         </TD>
@@ -774,7 +781,7 @@ function TimTab({
                                             {a.status ? (
                                                 <StatusBadge status={a.status} />
                                             ) : (
-                                                <span className="text-slate-400">-</span>
+                                                <span className="text-muted">-</span>
                                             )}
                                         </TD>
                                     </TR>
@@ -809,7 +816,7 @@ function MrvTab({ stockRequests }: { stockRequests: any[] }) {
                     <CardHeader className="flex items-center justify-between">
                         <div>
                             <CardTitle className="font-mono">{r.mrv_number}</CardTitle>
-                            <p className="mt-1 text-xs text-slate-400">
+                            <p className="mt-1 text-xs text-muted">
                                 Dibuat {formatDateTime(r.created_at)}
                             </p>
                         </div>
@@ -817,7 +824,7 @@ function MrvTab({ stockRequests }: { stockRequests: any[] }) {
                             <StatusBadge status={r.status} label={r.status_label} />
                             <Link
                                 href={route('warehouse.mrv.show', r.id)}
-                                className="text-xs font-medium text-indigo-600 hover:underline"
+                                className="text-xs font-medium text-primary hover:underline"
                             >
                                 Detail
                             </Link>
@@ -827,10 +834,10 @@ function MrvTab({ stockRequests }: { stockRequests: any[] }) {
                         {(r.notes || r.rejection_reason) && (
                             <div className="space-y-1 text-sm">
                                 {r.notes && (
-                                    <p className="text-slate-500">Catatan: {r.notes}</p>
+                                    <p className="text-muted">Catatan: {r.notes}</p>
                                 )}
                                 {r.rejection_reason && (
-                                    <p className="text-red-600">
+                                    <p className="text-danger">
                                         Alasan penolakan: {r.rejection_reason}
                                     </p>
                                 )}
@@ -851,7 +858,7 @@ function MrvTab({ stockRequests }: { stockRequests: any[] }) {
                                     <TR key={i.id}>
                                         <TD>
                                             <div>{i.product ?? '-'}</div>
-                                            <div className="text-xs text-slate-400">{i.sku}</div>
+                                            <div className="text-xs text-muted">{i.sku}</div>
                                         </TD>
                                         <TD>
                                             {formatNumber(i.quantity_requested)} {i.unit}
@@ -865,16 +872,16 @@ function MrvTab({ stockRequests }: { stockRequests: any[] }) {
                         </Table>
                         {r.returns.length > 0 && (
                             <div>
-                                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
                                     Pengembalian
                                 </p>
                                 <ul className="space-y-1 text-sm">
                                     {r.returns.map((rt: any) => (
                                         <li
                                             key={rt.id}
-                                            className="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-2"
+                                            className="flex items-center justify-between rounded-lg border border-border px-3 py-2"
                                         >
-                                            <span className="font-mono text-xs text-slate-500">
+                                            <span className="font-mono text-xs text-muted">
                                                 {rt.return_number}
                                             </span>
                                             <StatusBadge status={rt.status} />
@@ -946,11 +953,11 @@ function KitchenTab({ kitchen }: { kitchen: any | null }) {
                                     <TR key={rep.id}>
                                         <TD>{formatNumber(rep.prepared_quantity)}</TD>
                                         <TD>{rep.condition ?? '-'}</TD>
-                                        <TD className="max-w-xs truncate text-slate-500">
+                                        <TD className="max-w-xs truncate text-muted">
                                             {rep.notes ?? '-'}
                                         </TD>
                                         <TD>{rep.prepared_by ?? '-'}</TD>
-                                        <TD className="text-xs text-slate-500">
+                                        <TD className="text-xs text-muted">
                                             {formatDateTime(rep.prepared_at)}
                                         </TD>
                                         <TD>
@@ -959,12 +966,12 @@ function KitchenTab({ kitchen }: { kitchen: any | null }) {
                                                     href={rep.photo_url}
                                                     target="_blank"
                                                     rel="noreferrer"
-                                                    className="text-xs font-medium text-indigo-600 hover:underline"
+                                                    className="text-xs font-medium text-primary hover:underline"
                                                 >
                                                     Lihat
                                                 </a>
                                             ) : (
-                                                <span className="text-slate-400">-</span>
+                                                <span className="text-muted">-</span>
                                             )}
                                         </TD>
                                     </TR>
@@ -1013,12 +1020,12 @@ function LaporanTab({ reports }: { reports: any[] }) {
                                 <TD>{formatNumber(r.sampling_target)}</TD>
                                 <TD>{formatNumber(r.actual_sampling)}</TD>
                                 <TD>{r.achievement}%</TD>
-                                <TD className="text-xs text-slate-500">
+                                <TD className="text-xs text-muted">
                                     {r.submitted_by ?? '-'}
                                     <br />
                                     {formatDateTime(r.submitted_at)}
                                 </TD>
-                                <TD className="text-xs text-slate-500">
+                                <TD className="text-xs text-muted">
                                     {r.verified_by ?? '-'}
                                     <br />
                                     {formatDateTime(r.verified_at)}
@@ -1026,7 +1033,7 @@ function LaporanTab({ reports }: { reports: any[] }) {
                                 <TD className="text-right">
                                     <Link
                                         href={route('reports.show', r.id)}
-                                        className="text-xs font-medium text-indigo-600 hover:underline"
+                                        className="text-xs font-medium text-primary hover:underline"
                                     >
                                         Detail
                                     </Link>
@@ -1091,16 +1098,16 @@ function DokumenTab({
                         description="Unggah foto hasil sampling atau dokumen pendukung."
                     />
                 ) : (
-                    <ul className="divide-y divide-slate-100">
+                    <ul className="divide-y divide-border/70">
                         {documents.map((d) => (
                             <li key={d.id} className="flex items-center justify-between py-3">
                                 <div className="flex min-w-0 items-center gap-3">
-                                    <FolderOpen className="h-5 w-5 shrink-0 text-slate-400" />
+                                    <FolderOpen className="h-5 w-5 shrink-0 text-muted" />
                                     <div className="min-w-0">
-                                        <p className="truncate text-sm text-slate-700">
+                                        <p className="truncate text-sm text-text">
                                             {d.original_name}
                                         </p>
-                                        <p className="text-xs text-slate-400">
+                                        <p className="text-xs text-muted">
                                             {d.category} · {formatNumber(Math.round((d.size ?? 0) / 1024))} KB ·{' '}
                                             {d.uploaded_by ?? '-'} · {formatDateTime(d.created_at)}
                                         </p>
@@ -1108,7 +1115,7 @@ function DokumenTab({
                                 </div>
                                 <a
                                     href={d.url}
-                                    className="shrink-0 text-xs font-medium text-indigo-600 hover:underline"
+                                    className="shrink-0 text-xs font-medium text-primary hover:underline"
                                 >
                                     Unduh
                                 </a>
@@ -1168,18 +1175,18 @@ function QuickTab({ quickReports }: { quickReports: any[] }) {
                 <Card key={q.id}>
                     <CardHeader>
                         <CardTitle>{q.title}</CardTitle>
-                        <p className="mt-1 text-xs text-slate-400">
+                        <p className="mt-1 text-xs text-muted">
                             {q.user ?? '-'} · {formatDateTime(q.created_at)}
                         </p>
                     </CardHeader>
                     <CardContent className="space-y-3 text-sm">
-                        <p className="whitespace-pre-line text-slate-600">{q.body}</p>
+                        <p className="whitespace-pre-line text-text">{q.body}</p>
                         {q.photo_url && (
                             <a href={q.photo_url} target="_blank" rel="noreferrer">
                                 <img
                                     src={q.photo_url}
                                     alt={q.title}
-                                    className="max-h-56 w-full rounded-lg border border-slate-100 object-cover"
+                                    className="max-h-56 w-full rounded-lg border border-border object-cover"
                                 />
                             </a>
                         )}
@@ -1204,19 +1211,19 @@ function RiwayatTab({ auditTrail }: { auditTrail: any[] }) {
     return (
         <Card>
             <CardContent>
-                <ol className="relative space-y-5 border-l border-slate-200 pl-5">
+                <ol className="relative space-y-5 border-l border-border pl-5">
                     {auditTrail.map((log) => (
                         <li key={log.id} className="relative">
-                            <span className="absolute -left-[26px] top-1 flex h-2.5 w-2.5 rounded-full bg-indigo-400" />
-                            <p className="text-sm font-medium text-slate-700">
+                            <span className="absolute -left-[26px] top-1 flex h-2.5 w-2.5 rounded-full bg-primary" />
+                            <p className="text-sm font-medium text-text">
                                 {log.action}
                                 {log.module && (
-                                    <span className="ml-2 text-xs font-normal text-slate-400">
+                                    <span className="ml-2 text-xs font-normal text-muted">
                                         {log.module}
                                     </span>
                                 )}
                             </p>
-                            <p className="text-xs text-slate-400">
+                            <p className="text-xs text-muted">
                                 {log.user ?? 'Sistem'}
                                 {log.role ? ` (${log.role})` : ''} ·{' '}
                                 {formatDateTime(log.created_at)}
@@ -1240,8 +1247,8 @@ function Detail({
 }) {
     return (
         <div className={className}>
-            <dt className="text-xs uppercase tracking-wide text-slate-400">{label}</dt>
-            <dd className="mt-0.5 text-slate-800">{value || '-'}</dd>
+            <dt className="text-xs uppercase tracking-wide text-muted">{label}</dt>
+            <dd className="mt-0.5 text-text">{value || '-'}</dd>
         </div>
     );
 }

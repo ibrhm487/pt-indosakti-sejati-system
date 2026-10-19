@@ -28,10 +28,10 @@ export default function ResetPassword({
         <GuestLayout>
             <Head title="Reset Password" />
 
-            <h1 className="text-lg font-semibold tracking-tight text-slate-900">
+            <h1 className="text-lg font-semibold tracking-tight text-text">
                 Atur ulang password
             </h1>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-sm text-muted">
                 Buat password baru untuk akun Anda.
             </p>
 

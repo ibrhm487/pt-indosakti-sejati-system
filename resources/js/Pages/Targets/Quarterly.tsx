@@ -116,7 +116,7 @@ function EditTargetModal({
                         aria-invalid={Boolean(errors.target_cups)}
                     />
                 </Field>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-muted">
                     Berlaku untuk Q{quarter} {year}. Realisasi saat ini{' '}
                     {brand ? formatNumber(brand.actual_cups) : 0} cup.
                 </p>
@@ -219,11 +219,11 @@ export default function QuarterlyTargets({
                                 return (
                                     <TR key={brand.id}>
                                         <TD>
-                                            <p className="font-medium text-slate-800">
+                                            <p className="font-medium text-text">
                                                 {brand.name}
                                             </p>
                                             {!brand.is_configured && (
-                                                <p className="text-xs text-slate-400">
+                                                <p className="text-xs text-muted">
                                                     Menggunakan target default
                                                     brand
                                                 </p>
@@ -235,7 +235,7 @@ export default function QuarterlyTargets({
                                         <TD className="min-w-40">
                                             <div className="flex items-center justify-end gap-2">
                                                 <div
-                                                    className="h-2 w-20 overflow-hidden rounded-full bg-slate-100"
+                                                    className="h-2 w-20 overflow-hidden rounded-full bg-page"
                                                     role="progressbar"
                                                     aria-label={`Pencapaian ${brand.name}`}
                                                     aria-valuenow={
@@ -247,8 +247,8 @@ export default function QuarterlyTargets({
                                                     <div
                                                         className={`h-full rounded-full transition-[width] duration-500 ${
                                                             reached
-                                                                ? 'bg-emerald-500'
-                                                                : 'bg-indigo-600'
+                                                                ? 'bg-success/100'
+                                                                : 'bg-primary'
                                                         }`}
                                                         style={{
                                                             width: `${Math.min(
@@ -265,7 +265,7 @@ export default function QuarterlyTargets({
                                                 </span>
                                             </div>
                                         </TD>
-                                        <TD className="text-right font-mono text-slate-800">
+                                        <TD className="text-right font-mono text-text">
                                             {formatNumber(brand.target_cups)}
                                         </TD>
                                         <TD className="text-right">

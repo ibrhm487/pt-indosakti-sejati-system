@@ -218,14 +218,14 @@ export default function EventsIndex({
                     <Button type="submit" variant="default" className="h-11 rounded-xl px-5">
                         Terapkan
                     </Button>
-                    <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1">
+                    <div className="flex items-center gap-1 rounded-xl border border-border bg-page p-1">
                         <button
                             type="button"
                             onClick={() => setView('list')}
                             className={`inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium ${
                                 view === 'list'
-                                    ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200/70'
-                                    : 'text-slate-600 hover:text-slate-900'
+                                    ? 'bg-surface text-text shadow-sm ring-1 ring-border'
+                                    : 'text-text hover:text-text'
                             }`}
                         >
                             <List className="h-4 w-4" /> Daftar
@@ -235,8 +235,8 @@ export default function EventsIndex({
                             onClick={() => setView('calendar')}
                             className={`inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium ${
                                 view === 'calendar'
-                                    ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200/70'
-                                    : 'text-slate-600 hover:text-slate-900'
+                                    ? 'bg-surface text-text shadow-sm ring-1 ring-border'
+                                    : 'text-text hover:text-text'
                             }`}
                         >
                             <CalendarDays className="h-4 w-4" /> Kalender
@@ -246,12 +246,12 @@ export default function EventsIndex({
             </FilterCard>
 
             {view === 'calendar' ? (
-                <div className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm">
+                <div className="rounded-xl border border-border bg-surface p-4 shadow-sm">
                     <div className="mb-4 flex items-center justify-between">
                         <Button variant="ghost" size="sm" onClick={() => goToMonth(-1)}>
                             <ChevronLeft className="h-4 w-4" /> Sebelumnya
                         </Button>
-                        <p className="text-sm font-semibold capitalize text-slate-800">
+                        <p className="text-sm font-semibold capitalize text-text">
                             {monthLabel}
                         </p>
                         <Button variant="ghost" size="sm" onClick={() => goToMonth(1)}>
@@ -262,7 +262,7 @@ export default function EventsIndex({
                         {WEEKDAYS.map((day) => (
                             <div
                                 key={day}
-                                className="pb-2 text-center text-xs font-semibold uppercase tracking-wide text-slate-400"
+                                className="pb-2 text-center text-xs font-semibold uppercase tracking-wide text-muted"
                             >
                                 {day}
                             </div>
@@ -272,12 +272,12 @@ export default function EventsIndex({
                                 key={index}
                                 className={`min-h-24 rounded-lg border p-1.5 ${
                                     cell.day
-                                        ? 'border-slate-100 bg-white'
-                                        : 'border-transparent bg-slate-50/40'
+                                        ? 'border-border bg-surface'
+                                        : 'border-transparent bg-page/40'
                                 }`}
                             >
                                 {cell.day && (
-                                    <p className="mb-1 text-right text-xs font-medium text-slate-400">
+                                    <p className="mb-1 text-right text-xs font-medium text-muted">
                                         {cell.day}
                                     </p>
                                 )}
@@ -286,7 +286,7 @@ export default function EventsIndex({
                                         <Link
                                             key={event.id}
                                             href={route('events.show', event.id)}
-                                            className="block truncate rounded-md bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-100"
+                                            className="block truncate rounded-md bg-primary/10 px-2 py-1 text-xs font-medium text-primary hover:bg-primary/10"
                                             title={event.event_name}
                                         >
                                             {event.event_name}
@@ -324,11 +324,11 @@ export default function EventsIndex({
                                             <TD>
                                                 <Link
                                                     href={route('events.show', e.id)}
-                                                    className="font-medium text-slate-800 hover:text-indigo-600"
+                                                    className="font-medium text-text hover:text-primary"
                                                 >
                                                     {e.event_name}
                                                 </Link>
-                                                <p className="font-mono text-xs text-slate-400">
+                                                <p className="font-mono text-xs text-muted">
                                                     {e.event_code}
                                                 </p>
                                             </TD>

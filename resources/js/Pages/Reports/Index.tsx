@@ -108,7 +108,7 @@ export default function ReportsIndex({
                             </option>
                         ))}
                     </Select>
-                    <label className="flex flex-col gap-1 text-xs font-medium text-slate-500">
+                    <label className="flex flex-col gap-1 text-xs font-medium text-muted">
                         Dari Tanggal
                         <Input
                             type="date"
@@ -117,7 +117,7 @@ export default function ReportsIndex({
                             onChange={(e) => setDateFrom(e.target.value)}
                         />
                     </label>
-                    <label className="flex flex-col gap-1 text-xs font-medium text-slate-500">
+                    <label className="flex flex-col gap-1 text-xs font-medium text-muted">
                         Sampai Tanggal
                         <Input
                             type="date"
@@ -170,7 +170,7 @@ export default function ReportsIndex({
                                         <TD>
                                             <Link
                                                 href={route('reports.show', r.id)}
-                                                className="font-medium text-slate-800 hover:text-indigo-600"
+                                                className="font-medium text-text hover:text-primary"
                                             >
                                                 {r.event}
                                             </Link>

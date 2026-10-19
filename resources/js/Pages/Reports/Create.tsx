@@ -88,40 +88,40 @@ export default function ReportsCreate({
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
-                                <ClipboardList className="h-4 w-4 text-slate-400" /> Ringkasan Laporan
+                                <ClipboardList className="h-4 w-4 text-muted" /> Ringkasan Laporan
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-3 text-sm">
                             <div>
-                                <p className="text-xs uppercase tracking-wide text-slate-400">
+                                <p className="text-xs uppercase tracking-wide text-muted">
                                     Event
                                 </p>
-                                <p className="mt-0.5 font-medium text-slate-800">
+                                <p className="mt-0.5 font-medium text-text">
                                     {selectedEvent ? selectedEvent.event_name : 'Belum dipilih'}
                                 </p>
                                 {selectedEvent?.event_date && (
-                                    <p className="text-xs text-slate-400">
+                                    <p className="text-xs text-muted">
                                         {selectedEvent.event_date}
                                     </p>
                                 )}
                             </div>
                             <div>
-                                <p className="text-xs uppercase tracking-wide text-slate-400">
+                                <p className="text-xs uppercase tracking-wide text-muted">
                                     Permasalahan
                                 </p>
-                                <p className="mt-0.5 text-slate-700">
+                                <p className="mt-0.5 text-text">
                                     {form.data.issues || 'Tidak ada kendala yang dituliskan'}
                                 </p>
                             </div>
                             <div>
-                                <p className="text-xs uppercase tracking-wide text-slate-400">
+                                <p className="text-xs uppercase tracking-wide text-muted">
                                     Catatan
                                 </p>
-                                <p className="mt-0.5 whitespace-pre-wrap text-slate-700">
+                                <p className="mt-0.5 whitespace-pre-wrap text-text">
                                     {form.data.notes || 'Belum diisi'}
                                 </p>
                             </div>
-                            <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">
+                            <p className="rounded-lg bg-page px-3 py-2 text-xs text-muted">
                                 {selectedEvent
                                     ? 'Target sampling akan mengikuti event bila dikosongkan.'
                                     : 'Pilih event terlebih dahulu untuk melihat target.'}

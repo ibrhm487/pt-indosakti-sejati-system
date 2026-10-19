@@ -94,7 +94,7 @@ export default function AdminPersonnelIndex({
                             <TBody>
                                 {personnel.data.map((p: any) => (
                                     <TR key={p.id}>
-                                        <TD className="font-medium text-slate-800">{p.name}</TD>
+                                        <TD className="font-medium text-text">{p.name}</TD>
                                         <TD>{p.role ?? '-'}</TD>
                                         <TD>{p.phone ?? '-'}</TD>
                                         <TD>
@@ -170,11 +170,11 @@ function PersonnelFields({ form }: { form: any }) {
             <Field label="Status" className="flex items-center gap-2 pt-6">
                 <input
                     type="checkbox"
-                    className="h-4 w-4 rounded border-slate-300"
+                    className="h-4 w-4 rounded border-border"
                     checked={data.is_active}
                     onChange={(e) => setData('is_active', e.target.checked)}
                 />
-                <span className="text-sm text-slate-700">Aktif</span>
+                <span className="text-sm text-text">Aktif</span>
             </Field>
         </div>
     );

@@ -35,8 +35,8 @@ function Section({
 }) {
     return (
         <div className="space-y-3">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
-                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted">
+                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-page text-muted">
                     {icon}
                 </span>
                 {title}
@@ -109,10 +109,10 @@ export function ReceiptFormFields({
                         type="file"
                         accept="image/jpeg,image/png,image/webp"
                         onChange={(e) => setData('photo', e.target.files?.[0] ?? null)}
-                        className="block w-full cursor-pointer rounded-lg border border-slate-200 bg-white text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-slate-700"
+                        className="block w-full cursor-pointer rounded-lg border border-border bg-surface text-sm text-text file:mr-3 file:rounded-lg file:border-0 file:bg-page file:px-3 file:py-2 file:text-text"
                     />
                 </Field>
-                <p className="text-xs text-slate-400">JPG/PNG/WebP, maks. 4 MB. Foto tersimpan privat dan hanya dapat diakses berwenang.</p>
+                <p className="text-xs text-muted">JPG/PNG/WebP, maks. 4 MB. Foto tersimpan privat dan hanya dapat diakses berwenang.</p>
             </Section>
         </div>
     );
@@ -168,18 +168,18 @@ export default function ReceiptForm({
                 <aside className="h-fit">
                     <Card>
                         <CardContent className="pt-6">
-                            <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                            <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted">
                                 <History className="h-3.5 w-3.5" /> Transaksi Terakhir
                             </p>
                             {recentMovements.length === 0 ? (
-                                <p className="mt-3 text-sm text-slate-400">
+                                <p className="mt-3 text-sm text-muted">
                                     Belum ada pergerakan stok tercatat.
                                 </p>
                             ) : (
                                 <div className="mt-3 overflow-x-auto">
                                     <table className="w-full text-left text-sm">
                                         <thead>
-                                            <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-400">
+                                            <tr className="border-b border-border text-xs uppercase tracking-wide text-muted">
                                                 <th className="py-2 pr-3 font-medium">Barang</th>
                                                 <th className="py-2 pr-3 font-medium">Jenis</th>
                                                 <th className="py-2 pr-3 text-right font-medium">Qty</th>
@@ -188,25 +188,25 @@ export default function ReceiptForm({
                                         </thead>
                                         <tbody>
                                             {recentMovements.map((m) => (
-                                                <tr key={m.id} className="border-b border-slate-100 last:border-0">
+                                                <tr key={m.id} className="border-b border-border last:border-0">
                                                     <td className="py-2 pr-3">
-                                                        <p className="font-medium text-slate-700">{m.product ?? '-'}</p>
-                                                        <p className="text-xs text-slate-400">{m.at}</p>
+                                                        <p className="font-medium text-text">{m.product ?? '-'}</p>
+                                                        <p className="text-xs text-muted">{m.at}</p>
                                                     </td>
-                                                    <td className="py-2 pr-3 text-slate-600">
+                                                    <td className="py-2 pr-3 text-text">
                                                         {m.type_label}
                                                     </td>
                                                     <td
                                                         className={`py-2 pr-3 text-right ${
                                                             m.type === 'stock_out' || m.type === 'damage'
-                                                                ? 'text-red-600'
-                                                                : 'text-emerald-700'
+                                                                ? 'text-danger'
+                                                                : 'text-success'
                                                         }`}
                                                     >
                                                         {m.type === 'stock_out' || m.type === 'damage' ? '-' : '+'}
                                                         {m.quantity}
                                                     </td>
-                                                    <td className="py-2 text-right font-medium text-slate-700">
+                                                    <td className="py-2 text-right font-medium text-text">
                                                         {m.balance_after}
                                                     </td>
                                                 </tr>

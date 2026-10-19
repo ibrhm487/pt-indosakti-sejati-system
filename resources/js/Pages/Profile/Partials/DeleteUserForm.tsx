@@ -40,10 +40,10 @@ export default function DeleteUserForm() {
     return (
         <section className="space-y-5">
             <header>
-                <h2 className="text-base font-semibold text-slate-900">
+                <h2 className="text-base font-semibold text-text">
                     Hapus Akun
                 </h2>
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-sm text-muted">
                     Setelah akun dihapus, seluruh sumber daya dan datanya akan
                     dihapus permanen. Sebelum menghapus, unduh dulu data yang
                     ingin Anda simpan.

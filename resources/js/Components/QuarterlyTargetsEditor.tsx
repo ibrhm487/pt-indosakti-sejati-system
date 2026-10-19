@@ -109,9 +109,9 @@ function EditTargetsModal({
                     {data.targets.map((t, idx) => (
                         <div
                             key={t.quarter}
-                            className="grid items-end gap-3 rounded-xl border border-slate-200/80 bg-slate-50/50 p-3 sm:grid-cols-[auto_1fr_1fr]"
+                            className="grid items-end gap-3 rounded-xl border border-border bg-page/50 p-3 sm:grid-cols-[auto_1fr_1fr]"
                         >
-                            <span className="mb-2 inline-flex h-9 w-12 items-center justify-center rounded-lg bg-indigo-100 text-sm font-semibold text-indigo-700">
+                            <span className="mb-2 inline-flex h-9 w-12 items-center justify-center rounded-lg bg-primary/10 text-sm font-semibold text-primary">
                                 Q{t.quarter}
                             </span>
                             <Field
@@ -162,10 +162,10 @@ function EditTargetsModal({
                 </div>
 
                 {errors.brand_id && (
-                    <p className="mt-3 text-xs text-red-600">{errors.brand_id}</p>
+                    <p className="mt-3 text-xs text-danger">{errors.brand_id}</p>
                 )}
                 {!data.brand_id && (
-                    <p className="mt-3 text-xs text-amber-600">
+                    <p className="mt-3 text-xs text-warning">
                         Pilih brand terlebih dahulu sebelum menyimpan target.
                     </p>
                 )}
@@ -249,7 +249,7 @@ export default function QuarterlyTargetsEditor({
                 <CardHeader className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <CardTitle>Target Cup per Kuartal</CardTitle>
-                        <p className="mt-0.5 text-xs text-slate-500">
+                        <p className="mt-0.5 text-xs text-muted">
                             {brandName} · {year}
                         </p>
                     </div>
@@ -283,14 +283,14 @@ export default function QuarterlyTargetsEditor({
                             {targets.map((target) => (
                                 <TR key={target.quarter}>
                                     <TD>
-                                        <span className="inline-flex h-7 w-10 items-center justify-center rounded-lg bg-indigo-50 text-xs font-semibold text-indigo-700">
+                                        <span className="inline-flex h-7 w-10 items-center justify-center rounded-lg bg-primary/10 text-xs font-semibold text-primary">
                                             Q{target.quarter}
                                         </span>
                                     </TD>
-                                    <TD className="text-slate-500">
+                                    <TD className="text-muted">
                                         Bulan {target.start_month}
                                     </TD>
-                                    <TD className="text-right font-mono text-slate-800">
+                                    <TD className="text-right font-mono text-text">
                                         {formatNumber(target.target_cups)}
                                     </TD>
                                 </TR>
@@ -300,11 +300,11 @@ export default function QuarterlyTargetsEditor({
                             <TR className="hover:bg-transparent">
                                 <TD
                                     colSpan={2}
-                                    className="text-xs font-semibold uppercase tracking-wide text-slate-500"
+                                    className="text-xs font-semibold uppercase tracking-wide text-muted"
                                 >
                                     Total {year} (cup)
                                 </TD>
-                                <TD className="text-right font-mono font-semibold text-slate-900">
+                                <TD className="text-right font-mono font-semibold text-text">
                                     {formatNumber(totalTarget)}
                                 </TD>
                             </TR>

@@ -27,10 +27,10 @@ export default function UpdateProfileInformation({
     return (
         <section>
             <header>
-                <h2 className="text-base font-semibold text-slate-900">
+                <h2 className="text-base font-semibold text-text">
                     Informasi Profil
                 </h2>
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-sm text-muted">
                     Perbarui informasi profil dan alamat email akun Anda.
                 </p>
             </header>
@@ -60,18 +60,18 @@ export default function UpdateProfileInformation({
                 </Field>
 
                 {mustVerifyEmail && user.email_verified_at === null && (
-                    <div className="rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-sm text-amber-800">
+                    <div className="rounded-xl border border-warning/20 bg-warning/10 px-3.5 py-2.5 text-sm text-warning">
                         Alamat email Anda belum terverifikasi.{' '}
                         <Link
                             href={route('verification.send')}
                             method="post"
                             as="button"
-                            className="font-medium underline underline-offset-2 hover:text-amber-900"
+                            className="font-medium underline underline-offset-2 hover:text-warning"
                         >
                             Klik di sini untuk mengirim ulang email verifikasi.
                         </Link>
                         {status === 'verification-link-sent' && (
-                            <div className="mt-1 font-medium text-emerald-700">
+                            <div className="mt-1 font-medium text-success">
                                 Tautan verifikasi baru telah dikirim ke email
                                 Anda.
                             </div>
@@ -91,7 +91,7 @@ export default function UpdateProfileInformation({
                         leave="transition ease-in-out"
                         leaveTo="opacity-0"
                     >
-                        <p className="text-sm font-medium text-emerald-600">
+                        <p className="text-sm font-medium text-success">
                             Tersimpan.
                         </p>
                     </Transition>

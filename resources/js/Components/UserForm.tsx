@@ -56,8 +56,8 @@ function Section({
 }) {
     return (
         <div className="space-y-3">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
-                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted">
+                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-page text-muted">
                     {icon}
                 </span>
                 {title}
@@ -108,11 +108,11 @@ export function UserFormFields({
                     <Field label="Status" className="flex items-center gap-2 pt-6">
                         <input
                             type="checkbox"
-                            className="h-4 w-4 rounded border-slate-300"
+                            className="h-4 w-4 rounded border-border"
                             checked={data.is_active}
                             onChange={(e) => setData('is_active', e.target.checked)}
                         />
-                        <span className="text-sm text-slate-700">Aktif</span>
+                        <span className="text-sm text-text">Aktif</span>
                     </Field>
                 </div>
             </Section>
@@ -121,10 +121,10 @@ export function UserFormFields({
                 <Field label="Peran yang dimiliki" error={errors.roles}>
                     <div className="flex flex-wrap gap-x-5 gap-y-2">
                         {roles.map((r) => (
-                            <label key={r.id} className="flex items-center gap-2 text-sm text-slate-700">
+                            <label key={r.id} className="flex items-center gap-2 text-sm text-text">
                                 <input
                                     type="checkbox"
-                                    className="h-4 w-4 rounded border-slate-300"
+                                    className="h-4 w-4 rounded border-border"
                                     checked={data.roles.includes(r.id)}
                                     onChange={() => toggleRole(r.id)}
                                 />

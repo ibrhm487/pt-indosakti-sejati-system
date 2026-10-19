@@ -53,7 +53,7 @@ export default function EventsEdit({
             />
 
             {event.is_terminal && (
-                <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                <div className="mb-4 rounded-md border border-warning/20 bg-warning/10 px-4 py-3 text-sm text-warning">
                     Event yang sudah selesai atau dibatalkan tidak dapat diubah.
                 </div>
             )}

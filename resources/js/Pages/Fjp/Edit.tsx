@@ -1,5 +1,6 @@
 import { PageHeader } from '@/Components/AppBits';
 import AppLayout from '@/Layouts/AppLayout';
+import { Head } from '@inertiajs/react';
 import FjpForm, { FjpFormOptions } from './Form';
 
 export default function FjpEdit({
@@ -31,7 +32,14 @@ export default function FjpEdit({
 
     return (
         <AppLayout title="Ubah FJP">
-            <PageHeader title={`Ubah FJP ${fjp.fjp_number ?? ''}`} />
+            <Head title={`Ubah FJP ${fjp.fjp_number ?? ''}`} />
+            <PageHeader
+                title={`Ubah FJP ${fjp.fjp_number ?? ''}`}
+                breadcrumbs={[
+                    { label: 'FJP', href: route('fjp.index') },
+                    { label: 'Ubah FJP' },
+                ]}
+            />
             <FjpForm
                 initial={initial}
                 action={route('fjp.update', fjp.id)}

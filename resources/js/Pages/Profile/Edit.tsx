@@ -1,3 +1,4 @@
+import { PageHeader } from '@/Components/AppBits';
 import { Card } from '@/Components/ui';
 import AppLayout from '@/Layouts/AppLayout';
 import { PageProps } from '@/types';
@@ -15,14 +16,10 @@ export default function Edit({
             <Head title="Profil" />
 
             <div className="mx-auto max-w-3xl space-y-6">
-                <div>
-                    <h1 className="text-xl font-semibold tracking-tight text-slate-900">
-                        Profil
-                    </h1>
-                    <p className="mt-1 text-sm text-slate-500">
-                        Kelola informasi akun, password, dan keamanan akun Anda.
-                    </p>
-                </div>
+                <PageHeader
+                    title="Profil"
+                    subtitle="Kelola informasi akun, password, dan keamanan akun Anda."
+                />
 
                 <Card className="p-5 sm:p-6">
                     <UpdateProfileInformationForm

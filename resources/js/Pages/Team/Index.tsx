@@ -71,7 +71,7 @@ export default function TeamIndex({
                                         {events.map((event) => (
                                             <TR key={event.id}>
                                                 <TD>
-                                                    <p className="font-medium text-slate-800">
+                                                    <p className="font-medium text-text">
                                                         {event.event_name}
                                                         {event.is_today && (
                                                             <Badge variant="info" className="ml-2 align-middle">
@@ -79,7 +79,7 @@ export default function TeamIndex({
                                                             </Badge>
                                                         )}
                                                     </p>
-                                                    <p className="text-xs text-slate-400">
+                                                    <p className="text-xs text-muted">
                                                         {event.brand} · PIC: {event.pic ?? '-'}
                                                     </p>
                                                 </TD>
@@ -104,7 +104,7 @@ export default function TeamIndex({
                                                         {canQuickReport && (
                                                             <Link
                                                                 href={route('quick-reports.create') + `?event=${event.id}`}
-                                                                className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+                                                                className="text-sm font-medium text-primary hover:text-primary"
                                                             >
                                                                 Buat Laporan
                                                             </Link>
@@ -112,14 +112,14 @@ export default function TeamIndex({
                                                         {canCreateReport && !canQuickReport && (
                                                             <Link
                                                                 href={route('reports.create')}
-                                                                className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+                                                                className="text-sm font-medium text-primary hover:text-primary"
                                                             >
                                                                 Buat Laporan
                                                             </Link>
                                                         )}
                                                         <Link
                                                             href={route('events.show', event.id)}
-                                                            className="text-sm font-medium text-slate-500 hover:text-slate-700"
+                                                            className="text-sm font-medium text-muted hover:text-text"
                                                         >
                                                             Lihat Detail
                                                         </Link>
@@ -167,19 +167,19 @@ export default function TeamIndex({
                         </CardHeader>
                         <CardContent className="space-y-2">
                             {teamMembers.length === 0 && (
-                                <p className="text-sm text-slate-400">
+                                <p className="text-sm text-muted">
                                     Belum ada pengguna dengan role tim.
                                 </p>
                             )}
                             {teamMembers.map((member) => (
                                 <div
                                     key={member.id}
-                                    className="rounded-xl border border-slate-200/80 bg-slate-50/50 px-3.5 py-2.5"
+                                    className="rounded-xl border border-border bg-page/50 px-3.5 py-2.5"
                                 >
-                                    <p className="text-sm font-medium text-slate-700">
+                                    <p className="text-sm font-medium text-text">
                                         {member.name}
                                     </p>
-                                    <p className="text-xs text-slate-400">
+                                    <p className="text-xs text-muted">
                                         {member.email}
                                     </p>
                                 </div>

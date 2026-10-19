@@ -86,7 +86,7 @@ export default function QuickReportsCreate({
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
-                                <Camera className="h-4 w-4 text-slate-400" /> Preview Bukti Foto
+                                <Camera className="h-4 w-4 text-muted" /> Preview Bukti Foto
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
@@ -95,7 +95,7 @@ export default function QuickReportsCreate({
                                     <img
                                         src={previewUrl}
                                         alt="Preview bukti foto"
-                                        className="max-h-64 w-full rounded-xl border border-slate-200 object-contain bg-slate-50"
+                                        className="max-h-64 w-full rounded-xl border border-border object-contain bg-page"
                                     />
                                     <Button
                                         type="button"
@@ -107,12 +107,12 @@ export default function QuickReportsCreate({
                                     </Button>
                                 </div>
                             ) : (
-                                <div className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/60 px-4 py-8 text-center">
-                                    <ImageOff className="h-8 w-8 text-slate-300" />
-                                    <p className="text-sm font-medium text-slate-500">
+                                <div className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-page/60 px-4 py-8 text-center">
+                                    <ImageOff className="h-8 w-8 text-muted/60" />
+                                    <p className="text-sm font-medium text-muted">
                                         Belum ada foto dipilih
                                     </p>
-                                    <p className="text-xs text-slate-400">
+                                    <p className="text-xs text-muted">
                                         Foto yang Anda pilih akan tampil di sini sebelum dikirim.
                                     </p>
                                 </div>
@@ -123,40 +123,40 @@ export default function QuickReportsCreate({
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
-                                <ClipboardList className="h-4 w-4 text-slate-400" /> Ringkasan Laporan
+                                <ClipboardList className="h-4 w-4 text-muted" /> Ringkasan Laporan
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-3 text-sm">
                             <div>
-                                <p className="text-xs uppercase tracking-wide text-slate-400">
+                                <p className="text-xs uppercase tracking-wide text-muted">
                                     Event
                                 </p>
-                                <p className="mt-0.5 font-medium text-slate-800">
+                                <p className="mt-0.5 font-medium text-text">
                                     {selectedEvent ? selectedEvent.event_name : 'Belum dipilih'}
                                 </p>
                                 {selectedEvent?.event_date && (
-                                    <p className="text-xs text-slate-400">
+                                    <p className="text-xs text-muted">
                                         {formatDate(selectedEvent.event_date)}
                                     </p>
                                 )}
                             </div>
                             <div>
-                                <p className="text-xs uppercase tracking-wide text-slate-400">
+                                <p className="text-xs uppercase tracking-wide text-muted">
                                     Judul
                                 </p>
-                                <p className="mt-0.5 font-medium text-slate-800">
+                                <p className="mt-0.5 font-medium text-text">
                                     {form.data.title || 'Belum diisi'}
                                 </p>
                             </div>
                             <div>
-                                <p className="text-xs uppercase tracking-wide text-slate-400">
+                                <p className="text-xs uppercase tracking-wide text-muted">
                                     Catatan
                                 </p>
-                                <p className="mt-0.5 whitespace-pre-wrap text-slate-700">
+                                <p className="mt-0.5 whitespace-pre-wrap text-text">
                                     {form.data.body || 'Belum diisi'}
                                 </p>
                             </div>
-                            <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">
+                            <div className="flex items-center gap-2 rounded-lg bg-page px-3 py-2 text-xs text-muted">
                                 <FileText className="h-3.5 w-3.5" />
                                 {form.data.body.length}/3000 karakter ·{' '}
                                 {photo ? 'Foto siap dikirim' : 'Foto belum dipilih'}

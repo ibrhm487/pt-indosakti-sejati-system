@@ -1,4 +1,5 @@
 import ProductForm from '@/Components/ProductForm';
+import { Head } from '@inertiajs/react';
 
 export default function ProductFormPage({
     product,
@@ -18,5 +19,10 @@ export default function ProductFormPage({
     brands: { id: number; name: string }[];
     categories: { id: number; name: string }[];
 }) {
-    return <ProductForm product={product} brands={brands} categories={categories} />;
+    return (
+        <>
+            <Head title={product ? 'Ubah Produk' : 'Produk Baru'} />
+            <ProductForm product={product} brands={brands} categories={categories} />
+        </>
+    );
 }

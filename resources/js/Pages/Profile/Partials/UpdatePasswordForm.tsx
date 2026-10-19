@@ -44,10 +44,10 @@ export default function UpdatePasswordForm() {
     return (
         <section>
             <header>
-                <h2 className="text-base font-semibold text-slate-900">
+                <h2 className="text-base font-semibold text-text">
                     Perbarui Password
                 </h2>
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-sm text-muted">
                     Gunakan password yang panjang dan acak agar akun tetap aman.
                 </p>
             </header>
@@ -107,7 +107,7 @@ export default function UpdatePasswordForm() {
                         leave="transition ease-in-out"
                         leaveTo="opacity-0"
                     >
-                        <p className="text-sm font-medium text-emerald-600">
+                        <p className="text-sm font-medium text-success">
                             Tersimpan.
                         </p>
                     </Transition>
