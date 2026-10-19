@@ -2,7 +2,7 @@ import { Button, Card, CardContent, CardHeader, CardTitle, Field, Input, Modal, 
 import AppLayout from '@/Layouts/AppLayout';
 import { formatDate, formatDateTime } from '@/lib/utils';
 import { Head } from '@inertiajs/react';
-import { router } from '@inertiajs/react';
+import { router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
 
 export default function ReportsShow({
@@ -15,7 +15,7 @@ export default function ReportsShow({
     can: { verify: boolean; revision: boolean; submit: boolean };
 }) {
     const [revisionOpen, setRevisionOpen] = useState(false);
-    const [revisionNote, setRevisionNote] = useState('');
+    const revisionForm = useForm({ revision_note: '' });
 
     const submitReport = () => {
         router.post(route('reports.submit', report.id), {}, { preserveScroll: true });
@@ -26,7 +26,13 @@ export default function ReportsShow({
     };
 
     const requestRevision = () => {
-        router.post(route('reports.revision', report.id), { revision_note: revisionNote }, { preserveScroll: true, onSuccess: () => { setRevisionOpen(false); setRevisionNote(''); } });
+        revisionForm.post(route('reports.revision', report.id), {
+            preserveScroll: true,
+            onSuccess: () => {
+                setRevisionOpen(false);
+                revisionForm.reset();
+            },
+        });
     };
 
     const canSubmit = can.submit;
@@ -114,14 +120,22 @@ export default function ReportsShow({
                         <Button variant="outline" size="sm" onClick={() => setRevisionOpen(false)}>
                             Batal
                         </Button>
-                        <Button variant="primary" size="sm" onClick={requestRevision}>
-                            Kirim
+                        <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={requestRevision}
+                            disabled={revisionForm.processing}
+                        >
+                            {revisionForm.processing ? 'Mengirim…' : 'Kirim'}
                         </Button>
                     </>
                 }
             >
-                <Field label="Catatan Revisi">
-                    <Input value={revisionNote} onChange={(e) => setRevisionNote(e.target.value)} />
+                <Field label="Catatan Revisi" error={revisionForm.errors.revision_note}>
+                    <Input
+                        value={revisionForm.data.revision_note}
+                        onChange={(e) => revisionForm.setData('revision_note', e.target.value)}
+                    />
                 </Field>
             </Modal>
         </AppLayout>

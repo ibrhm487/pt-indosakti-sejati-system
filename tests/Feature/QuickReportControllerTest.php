@@ -96,6 +96,58 @@ class QuickReportControllerTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_team_index_shows_only_their_own_quick_reports(): void
+    {
+        $this->seed(RolePermissionSeeder::class);
+        Storage::fake('local');
+        $team = User::where('email', 'team@indosakti.com')->firstOrFail();
+        $pic = User::where('email', 'pic@indosakti.com')->firstOrFail();
+        $event = $this->createEvent($pic, 'EVT-QUICK-INDEX-SCOPING');
+        EventTeamMember::create(['event_id' => $event->id, 'user_id' => $team->id]);
+
+        $own = QuickReport::create([
+            'event_id' => $event->id,
+            'user_id' => $team->id,
+            'title' => 'Laporan saya',
+            'photo_path' => 'quick-reports/'.$event->id.'/mine.jpg',
+        ]);
+        QuickReport::create([
+            'event_id' => $event->id,
+            'user_id' => $pic->id,
+            'title' => 'Laporan orang lain',
+            'photo_path' => 'quick-reports/'.$event->id.'/other.jpg',
+        ]);
+
+        $response = $this->actingAs($team)->get(route('quick-reports.index'));
+
+        $response->assertOk();
+        $rows = collect($response->inertiaProps('reports.data'));
+        $this->assertCount(1, $rows);
+        $this->assertSame($own->id, $rows->first()['id']);
+    }
+
+    public function test_team_member_out_of_event_scope_cannot_open_quick_report_photo(): void
+    {
+        $this->seed(RolePermissionSeeder::class);
+        Storage::fake('local');
+        $team = User::where('email', 'team@indosakti.com')->firstOrFail();
+        $pic = User::where('email', 'pic@indosakti.com')->firstOrFail();
+        $event = $this->createEvent($pic, 'EVT-QUICK-PHOTO-FOREIGN');
+
+        Storage::disk('local')->put('quick-reports/'.$event->id.'/bukti.jpg', 'foto');
+        $report = QuickReport::create([
+            'event_id' => $event->id,
+            'user_id' => $pic->id,
+            'title' => 'Laporan asing',
+            'photo_path' => 'quick-reports/'.$event->id.'/bukti.jpg',
+        ]);
+
+        // The team member is not assigned to this event: visibleEvents must deny.
+        $this->actingAs($team)
+            ->get(route('quick-reports.photo', $report))
+            ->assertForbidden();
+    }
+
     private function createEvent(User $pic, string $eventCode): Event
     {
         return Event::create([

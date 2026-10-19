@@ -175,6 +175,86 @@ class ReportControllerTest extends TestCase
         ]);
     }
 
+    public function test_report_owner_can_resubmit_a_report_in_revision_status(): void
+    {
+        $this->seedWorkspaceData();
+        $team = User::where('email', 'team@indosakti.com')->firstOrFail();
+        $event = Event::whereHas('teamMembers', fn ($query) => $query->where('user_id', $team->id))
+            ->firstOrFail();
+        $report = $this->createReport($event, $team, 400, ReportStatus::REVISION);
+        $report->update(['revision_note' => 'Mohon lengkapi realisasi sampling.']);
+
+        $this->actingAs($team)
+            ->post(route('reports.submit', $report))
+            ->assertRedirect();
+
+        $fresh = $report->fresh();
+        $this->assertSame(ReportStatus::SUBMITTED->value, $fresh->status->value);
+        $this->assertSame($team->id, $fresh->submitted_by);
+        // The revision note stays visible as history after resubmission.
+        $this->assertSame('Mohon lengkapi realisasi sampling.', $fresh->revision_note);
+    }
+
+    public function test_revision_request_requires_a_note_of_at_least_five_characters(): void
+    {
+        $this->seedWorkspaceData();
+        $adminEvent = User::where('email', 'admin.event@indosakti.com')->firstOrFail();
+        $event = Event::firstOrFail();
+        $report = $this->createReport($event, User::where('email', 'team@indosakti.com')->firstOrFail(), 400);
+
+        $this->actingAs($adminEvent)
+            ->from(route('reports.show', $report))
+            ->post(route('reports.revision', $report), [
+                'revision_note' => 'abc',
+            ])
+            ->assertSessionHasErrors('revision_note');
+
+        $this->assertDatabaseHas('event_reports', [
+            'id' => $report->id,
+            'status' => ReportStatus::SUBMITTED->value,
+        ]);
+    }
+
+    public function test_revision_request_moves_a_submitted_report_to_revision(): void
+    {
+        $this->seedWorkspaceData();
+        $adminEvent = User::where('email', 'admin.event@indosakti.com')->firstOrFail();
+        $event = Event::firstOrFail();
+        $report = $this->createReport($event, User::where('email', 'team@indosakti.com')->firstOrFail(), 400);
+
+        $this->actingAs($adminEvent)
+            ->from(route('reports.show', $report))
+            ->post(route('reports.revision', $report), [
+                'revision_note' => 'Mohon lampirkan foto bukti sampling.',
+            ])
+            ->assertSessionHasNoErrors();
+
+        $fresh = $report->fresh();
+        $this->assertSame(ReportStatus::REVISION->value, $fresh->status->value);
+        $this->assertSame('Mohon lampirkan foto bukti sampling.', $fresh->revision_note);
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'REVISION_REPORT',
+            'record_id' => $report->id,
+        ]);
+    }
+
+    public function test_cannot_verify_a_report_that_is_not_submitted(): void
+    {
+        $this->seedWorkspaceData();
+        $adminEvent = User::where('email', 'admin.event@indosakti.com')->firstOrFail();
+        $event = Event::firstOrFail();
+        $report = $this->createReport($event, $adminEvent, 400, ReportStatus::DRAFT);
+
+        $this->actingAs($adminEvent)
+            ->post(route('reports.verify', $report))
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('event_reports', [
+            'id' => $report->id,
+            'status' => ReportStatus::DRAFT->value,
+        ]);
+    }
+
     private function seedWorkspaceData(): void
     {
         $this->seed(RolePermissionSeeder::class);

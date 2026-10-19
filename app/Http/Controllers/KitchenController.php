@@ -9,6 +9,7 @@ use App\Models\KitchenRequest;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Support\EventAccess;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
@@ -86,10 +87,16 @@ class KitchenController extends Controller
             return back()->withErrors(['event_id' => 'Event ini tidak membutuhkan JUG.']);
         }
 
-        $kitchen = KitchenRequest::create([
-            ...$data,
-            'status' => KitchenStatus::PENDING,
-        ]);
+        try {
+            $kitchen = KitchenRequest::create([
+                ...$data,
+                'status' => KitchenStatus::PENDING,
+            ]);
+        } catch (UniqueConstraintViolationException) {
+            // event_id is unique: a concurrent double submit must fail gently
+            // instead of surfacing as a raw database error.
+            return back()->withErrors(['event_id' => 'Event ini sudah memiliki tugas kitchen.']);
+        }
 
         AuditLogger::log('CREATE_KITCHEN', 'kitchen', $kitchen, null, $data);
 
