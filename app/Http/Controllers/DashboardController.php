@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\EventStatus;
 use App\Enums\MrvStatus;
 use App\Enums\ReportStatus;
+use App\Models\Brand;
 use App\Models\Event;
 use App\Models\EventReport;
 use App\Models\Fjp;
@@ -26,15 +27,28 @@ class DashboardController extends Controller
         $user = $request->user();
         $role = $user->activeRoleSlug();
 
+        $brandId = $request->integer('brand_id') ?: null;
+        $dateFrom = $request->string('date_from')->toString() ?: null;
+        $dateTo = $request->string('date_to')->toString() ?: null;
+
         return Inertia::render('Dashboard', [
             'role' => $role,
-            'stats' => $this->statsForRole($user, $role),
-            'quarterly' => $this->quarterlyTargets(),
-            'upcomingEvents' => $this->upcomingEvents($user, $role),
-            'trend' => $this->monthlyTrend($user, $role),
+            'filters' => [
+                'brand_id' => $brandId,
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo,
+            ],
+            'brands' => Brand::query()
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get(['id', 'name']),
+            'stats' => $this->statsForRole($user, $role, $brandId, $dateFrom, $dateTo),
+            'quarterly' => $this->quarterlyTargets($brandId),
+            'upcomingEvents' => $this->upcomingEvents($user, $role, $brandId, $dateFrom, $dateTo),
+            'trend' => $this->monthlyTrend($user, $role, $brandId),
             // FJP student figures are scoped by fjp.view; roles without that
             // permission (team, kitchen, warehouse, admin_event) get no data.
-            'schoolComparison' => $user->hasPermission('fjp.view') ? $this->schoolComparison() : [],
+            'schoolComparison' => $user->hasPermission('fjp.view') ? $this->schoolComparison($brandId) : [],
         ]);
     }
 
@@ -48,7 +62,7 @@ class DashboardController extends Controller
      * Events scheduled vs completed per month for the last 6 months,
      * scoped the same way as the role's stat cards.
      */
-    private function monthlyTrend($user, ?string $role): array
+    private function monthlyTrend($user, ?string $role, ?int $brandId = null): array
     {
         $query = Event::query();
 
@@ -56,6 +70,10 @@ class DashboardController extends Controller
             $query->where('pic_id', $user->id);
         } elseif ($role === 'team') {
             $query->whereHas('teamMembers', fn ($q) => $q->where('user_id', $user->id));
+        }
+
+        if ($brandId) {
+            $query->where('brand_id', $brandId);
         }
 
         $events = (clone $query)
@@ -81,7 +99,7 @@ class DashboardController extends Controller
             ->all();
     }
 
-    private function statsForRole($user, ?string $role): array
+    private function statsForRole($user, ?string $role, ?int $brandId = null, ?string $dateFrom = null, ?string $dateTo = null): array
     {
         $eventQuery = Event::query();
         $reportQuery = EventReport::query();
@@ -92,8 +110,21 @@ class DashboardController extends Controller
             $eventQuery->whereHas('teamMembers', fn ($q) => $q->where('user_id', $user->id));
         }
 
-        // Event reports inherit the same ownership scope as their events.
-        if (in_array($role, ['pic', 'team'], true)) {
+        if ($brandId) {
+            $eventQuery->where('brand_id', $brandId);
+        }
+
+        if ($dateFrom) {
+            $eventQuery->whereDate('event_date', '>=', $dateFrom);
+        }
+
+        if ($dateTo) {
+            $eventQuery->whereDate('event_date', '<=', $dateTo);
+        }
+
+        // Event reports inherit the same ownership scope as their events, and
+        // follow the dashboard period/brand filters so counters stay consistent.
+        if (in_array($role, ['pic', 'team'], true) || $brandId || $dateFrom || $dateTo) {
             $reportQuery->whereIn('event_id', (clone $eventQuery)->select('events.id'));
         }
 
@@ -137,7 +168,7 @@ class DashboardController extends Controller
         return array_merge($base, $roleStats);
     }
 
-    private function quarterlyTargets(): array
+    private function quarterlyTargets(?int $brandId = null): array
     {
         $year = now()->year;
         $quarter = (int) ceil(now()->month / 3);
@@ -163,6 +194,7 @@ class DashboardController extends Controller
 
         return DB::table('brands')
             ->where('is_active', true)
+            ->when($brandId, fn ($q) => $q->where('id', $brandId))
             ->orderBy('name')
             ->get(['id', 'name', 'quarterly_target_cups'])
             ->map(function ($brand) use ($targets, $actualByBrand) {
@@ -179,13 +211,27 @@ class DashboardController extends Controller
             ->all();
     }
 
-    private function upcomingEvents($user, ?string $role): array
+    private function upcomingEvents($user, ?string $role, ?int $brandId = null, ?string $dateFrom = null, ?string $dateTo = null): array
     {
         $query = Event::query()
             ->with(['brand:id,name', 'venue:id,name'])
-            ->whereDate('event_date', '>=', now())
             ->orderBy('event_date')
             ->limit(5);
+
+        if ($dateFrom || $dateTo) {
+            if ($dateFrom) {
+                $query->whereDate('event_date', '>=', $dateFrom);
+            }
+            if ($dateTo) {
+                $query->whereDate('event_date', '<=', $dateTo);
+            }
+        } else {
+            $query->whereDate('event_date', '>=', now());
+        }
+
+        if ($brandId) {
+            $query->where('brand_id', $brandId);
+        }
 
         if ($role === 'pic') {
             $query->where('pic_id', $user->id);
@@ -206,11 +252,12 @@ class DashboardController extends Controller
         ])->all();
     }
 
-    private function schoolComparison(): array
+    private function schoolComparison(?int $brandId = null): array
     {
         return Fjp::query()
             ->whereNotNull('jumlah_siswa_sekolah')
             ->whereNotNull('jumlah_siswa_dapodik')
+            ->when($brandId, fn ($q) => $q->where('brand_id', $brandId))
             ->latest()
             ->limit(5)
             ->get(['id', 'event_name', 'jumlah_siswa_sekolah', 'jumlah_siswa_dapodik'])

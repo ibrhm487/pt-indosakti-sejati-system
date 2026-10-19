@@ -44,6 +44,18 @@ class FjpController extends Controller
             });
         }
 
+        if ($brandId = $request->integer('brand_id')) {
+            $base->where('brand_id', $brandId);
+        }
+
+        if ($from = $request->string('date_from')->toString()) {
+            $base->whereDate('event_date', '>=', $from);
+        }
+
+        if ($to = $request->string('date_to')->toString()) {
+            $base->whereDate('event_date', '<=', $to);
+        }
+
         $counts = (clone $base)
             ->selectRaw('permit_status, count(*) as aggregate')
             ->groupBy('permit_status')
@@ -96,7 +108,7 @@ class FjpController extends Controller
 
         return Inertia::render('Fjp/Index', [
             'fjps' => $fjps,
-            'filters' => $request->only('search', 'permit_status'),
+            'filters' => $request->only('search', 'permit_status', 'brand_id', 'date_from', 'date_to'),
             'permitStatuses' => collect(PermitStatus::cases())->map(fn ($s) => [
                 'value' => $s->value,
                 'label' => $s->label(),

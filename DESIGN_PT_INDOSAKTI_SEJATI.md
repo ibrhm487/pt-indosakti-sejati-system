@@ -372,23 +372,48 @@ Gunakan referensi sebagai inspirasi, bukan sebagai sumber kebenaran untuk proses
 
 Desain dinyatakan selesai jika:
 
-- [ ] Semua halaman utama menggunakan app shell dan pola layout yang konsisten.
-- [ ] Sidebar/topbar menampilkan role aktif yang benar.
-- [ ] Pergantian role memperbarui workspace dan menu dengan benar.
-- [ ] Menu dan aksi dibatasi berdasarkan izin backend.
-- [ ] Dashboard menampilkan metrik yang berasal dari data nyata.
-- [ ] Setiap halaman tabel memiliki loading, empty, error, dan pagination state yang layak.
-- [ ] Filter, pencarian, dan aksi tabel tetap berfungsi.
-- [ ] Form memiliki label, validasi, dan feedback yang jelas.
-- [ ] Status memakai label dan warna konsisten.
-- [ ] Tampilan responsif di desktop, tablet, dan mobile.
-- [ ] Upload foto/dokumen memberi feedback yang jelas.
-- [ ] Tampilan data FJP menunjukkan jumlah siswa versi sekolah, versi Dapodik, dan selisih jika field tersedia.
-- [ ] Alur MRV dan perubahan stok tetap konsisten dengan backend.
-- [ ] Tidak ada tombol dekoratif yang terlihat berfungsi tetapi tidak melakukan aksi.
-- [ ] Tidak ada data dummy yang ditampilkan sebagai data nyata.
-- [ ] Tidak ada business logic, route, atau permission yang rusak akibat perubahan UI.
-- [ ] Build dan test yang tersedia berhasil, atau masalah yang sudah ada didokumentasikan.
+- [x] Semua halaman utama menggunakan app shell dan pola layout yang konsisten. — `AppLayout` dipakai di seluruh halaman; `PageHeader` + breadcrumb seragam.
+- [x] Sidebar/topbar menampilkan role aktif yang benar. — `RoleSwitcher` membaca `active_role` dari `HandleInertiaRequests`.
+- [x] Pergantian role memperbarui workspace dan menu dengan benar. — `ActiveRoleController` (`POST /active-role`) + `navForRole()`.
+- [x] Menu dan aksi dibatasi berdasarkan izin backend. — RBAC ditegakkan di controller/middleware; UI memakai `auth.permissions`.
+- [x] Dashboard menampilkan metrik yang berasal dari data nyata. — `DashboardController` (stat per role, tren, target kuartal) + filter periode/brand.
+- [x] Setiap halaman tabel memiliki loading, empty, error, dan pagination state yang layak. — progress bar Inertia global, `EmptyState`, `Pagination`, flash/error; skeleton per-tabel belum diaktifkan.
+- [x] Filter, pencarian, dan aksi tabel tetap berfungsi. — termasuk filter periode + brand baru di FJP dan Dashboard.
+- [x] Form memiliki label, validasi, dan feedback yang jelas. — `Field` + error per-field + `FlashMessages`.
+- [x] Status memakai label dan warna konsisten. — `StatusBadge` / `STATUS_VARIANT` (termasuk kosakata status FJP lama).
+- [ ] Tampilan responsif di desktop, tablet, dan mobile. — perlu verifikasi manual di browser; layout memakai breakpoint `sm`/`lg`.
+- [x] Upload foto/dokumen memberi feedback yang jelas. — `useForm.processing` + error + flash.
+- [x] Tampilan data FJP menunjukkan jumlah siswa versi sekolah, versi Dapodik, dan selisih jika field tersedia. — `Fjp/Index` dan `Fjp/Show`.
+- [x] Alur MRV dan perubahan stok tetap konsisten dengan backend. — `WarehouseStockIntegrityTest`, `WarehouseRaceAndEvidenceTest`.
+- [x] Tidak ada tombol dekoratif yang terlihat berfungsi tetapi tidak melakukan aksi. — bar workspace/tab dekoratif dihapus.
+- [x] Tidak ada data dummy yang ditampilkan sebagai data nyata.
+- [x] Tidak ada business logic, route, atau permission yang rusak akibat perubahan UI. — 171 test lulus.
+- [x] Build dan test yang tersedia berhasil, atau masalah yang sudah ada didokumentasikan. — typecheck, lint, build, 171 test, pint semuanya hijau.
+
+## 16. Laporan Implementasi UI/UX
+
+Ringkasan pekerjaan (Tahap 7 — UI/UX dan regression):
+
+**Perubahan utama**
+- Token desain di `resources/css/app.css` (navy `#1F3A5F` + gold `#D9A441`, tipografi Inter, radius, status).
+- App shell baru: `resources/js/Layouts/AppLayout.tsx`, `RoleSwitcher.tsx`, `role.switch` (`ActiveRoleController`).
+- Primitive UI: `resources/js/Components/ui.tsx` + `AppBits.tsx` (PageHeader, FilterCard, TableSkeleton, ChartCard, StatusBadge, FlashMessages).
+- Dashboard role-aware dengan tren bulanan `recharts` dan filter periode/brand; tambahan filter periode/brand di tabel FJP.
+- Sweep palet token + `Head`/`PageHeader`/breadcrumb di seluruh halaman modul; komponen layout lama yang mati dihapus.
+- ESLint 9 flat config (`eslint.config.js`) + perbaikan script `npm run lint`.
+
+**Verifikasi**
+- `npm run typecheck` — lulus.
+- `npm run lint` — lulus.
+- `npm run build` — lulus.
+- `.\php.bat artisan test --compact` — 171 test, 997 assertion lulus.
+- `vendor\bin\pint --dirty` — lulus.
+
+**Belum / catatan**
+- Verifikasi visual responsif (desktop/tablet/mobile) perlu dilakukan manual di browser.
+- Skeleton per-tabel (deferred props Inertia) belum diaktifkan; feedback loading saat ini mengandalkan progress bar Inertia.
+- Filter periode/brand di Dashboard hanya memengaruhi metrik berbasis event/laporan/FJP; counter lintas modul (MRV, kitchen, permit) tetap global sesuai cakupan role.
+
 
 ## 15. Instruksi untuk AI Coding Agent
 

@@ -110,7 +110,13 @@ export default function FjpIndex({
     formOptions,
 }: {
     fjps: { data: FjpRow[] };
-    filters: { search?: string; permit_status?: string };
+    filters: {
+        search?: string;
+        permit_status?: string;
+        brand_id?: number | string;
+        date_from?: string;
+        date_to?: string;
+    };
     permitStatuses: { value: string; label: string }[];
     statusCounts: Record<string, number>;
     totalCount: number;
@@ -119,6 +125,11 @@ export default function FjpIndex({
 }) {
     const [search, setSearch] = useState(filters.search ?? '');
     const [status, setStatus] = useState(filters.permit_status ?? '');
+    const [brandId, setBrandId] = useState(
+        filters.brand_id != null ? String(filters.brand_id) : '',
+    );
+    const [dateFrom, setDateFrom] = useState(filters.date_from ?? '');
+    const [dateTo, setDateTo] = useState(filters.date_to ?? '');
     const [formOpen, setFormOpen] = useState(false);
     const [editingId, setEditingId] = useState<number | null>(null);
     const permissions = usePage().props.auth.permissions;
@@ -132,7 +143,22 @@ export default function FjpIndex({
         const params: Record<string, string> = {};
         if (search) params.search = search;
         if (permitStatus) params.permit_status = permitStatus;
+        if (brandId) params.brand_id = brandId;
+        if (dateFrom) params.date_from = dateFrom;
+        if (dateTo) params.date_to = dateTo;
         router.get(route('fjp.index'), params, {
+            preserveState: true,
+            preserveScroll: true,
+        });
+    };
+
+    const resetFilters = () => {
+        setSearch('');
+        setStatus('');
+        setBrandId('');
+        setDateFrom('');
+        setDateTo('');
+        router.get(route('fjp.index'), {}, {
             preserveState: true,
             preserveScroll: true,
         });
@@ -226,18 +252,59 @@ export default function FjpIndex({
             </PageHeader>
 
             <FilterCard>
-                <form onSubmit={submit} className="flex flex-col gap-3 sm:flex-row">
+                <form
+                    onSubmit={submit}
+                    className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end"
+                >
                     <SearchInput
                         placeholder="Cari nama event, nomor FJP, atau sekolah…"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                     />
+                    <Select
+                        className="sm:w-52"
+                        value={brandId}
+                        onChange={(e) => setBrandId(e.target.value)}
+                    >
+                        <option value="">Semua brand</option>
+                        {(formOptions?.brands ?? []).map((b) => (
+                            <option key={b.id} value={b.id}>
+                                {b.name}
+                            </option>
+                        ))}
+                    </Select>
+                    <label className="flex flex-col gap-1 text-xs font-medium text-muted">
+                        Dari Tanggal
+                        <Input
+                            type="date"
+                            className="sm:w-44"
+                            value={dateFrom}
+                            onChange={(e) => setDateFrom(e.target.value)}
+                        />
+                    </label>
+                    <label className="flex flex-col gap-1 text-xs font-medium text-muted">
+                        Sampai Tanggal
+                        <Input
+                            type="date"
+                            className="sm:w-44"
+                            value={dateTo}
+                            onChange={(e) => setDateTo(e.target.value)}
+                        />
+                    </label>
                     <Button
                         type="submit"
                         variant="default"
                         className="h-11 rounded-xl px-6"
                     >
                         Cari
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        className="h-11 rounded-xl px-6"
+                        onClick={resetFilters}
+                    >
+                        Reset
                     </Button>
                 </form>
             </FilterCard>

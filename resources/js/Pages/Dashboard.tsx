@@ -1,10 +1,13 @@
-import { EmptyState, PageHeader } from '@/Components/AppBits';
+import { EmptyState, FilterCard, PageHeader } from '@/Components/AppBits';
 import {
+    Button,
     Card,
     CardContent,
     CardHeader,
     CardTitle,
     ChartCard,
+    Input,
+    Select,
     StatCard,
     StatusBadge,
     Table,
@@ -16,7 +19,7 @@ import {
 } from '@/Components/ui';
 import AppLayout from '@/Layouts/AppLayout';
 import { cn, formatDate, formatNumber } from '@/lib/utils';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import {
     Activity,
     ArrowRight,
@@ -39,7 +42,7 @@ import {
     Truck,
     Utensils,
 } from 'lucide-react';
-import { ComponentType } from 'react';
+import { ComponentType, FormEvent, useState } from 'react';
 import {
     Bar,
     BarChart,
@@ -232,6 +235,8 @@ export default function Dashboard({
     upcomingEvents,
     trend,
     schoolComparison,
+    filters,
+    brands,
 }: {
     role: string | null;
     stats: Record<string, number>;
@@ -239,7 +244,38 @@ export default function Dashboard({
     upcomingEvents: any[];
     trend: { month: string; total: number; completed: number }[];
     schoolComparison: any[];
+    filters: { brand_id?: number | string | null; date_from?: string | null; date_to?: string | null };
+    brands: { id: number; name: string }[];
 }) {
+    const [brandId, setBrandId] = useState(
+        filters.brand_id != null ? String(filters.brand_id) : '',
+    );
+    const [dateFrom, setDateFrom] = useState(filters.date_from ?? '');
+    const [dateTo, setDateTo] = useState(filters.date_to ?? '');
+
+    const applyFilters = (e: FormEvent) => {
+        e.preventDefault();
+        router.get(
+            route('dashboard'),
+            {
+                brand_id: brandId || undefined,
+                date_from: dateFrom || undefined,
+                date_to: dateTo || undefined,
+            },
+            { preserveState: true, preserveScroll: true },
+        );
+    };
+
+    const resetFilters = () => {
+        setBrandId('');
+        setDateFrom('');
+        setDateTo('');
+        router.get(route('dashboard'), {}, {
+            preserveState: true,
+            preserveScroll: true,
+        });
+    };
+
     const orderedKeys = [
         ...STAT_ORDER.filter((k) => k in stats),
         ...Object.keys(stats).filter((k) => !STAT_ORDER.includes(k)),
@@ -252,10 +288,13 @@ export default function Dashboard({
             ? Math.round((totalQuarterlyActual / totalQuarterlyTarget) * 100)
             : 0;
 
-    const periodLabel = new Date().toLocaleDateString('id-ID', {
-        month: 'long',
-        year: 'numeric',
-    });
+    const periodLabel =
+        dateFrom || dateTo
+            ? `${dateFrom ? formatDate(dateFrom) : 'Awal'} – ${dateTo ? formatDate(dateTo) : 'Sekarang'}`
+            : new Date().toLocaleDateString('id-ID', {
+                  month: 'long',
+                  year: 'numeric',
+              });
 
     return (
         <AppLayout title="Dashboard">
@@ -264,6 +303,59 @@ export default function Dashboard({
                 title="Ringkasan Operasional"
                 subtitle={`${ROLE_LABELS[role ?? ''] ?? 'Semua Peran'} · Periode ${periodLabel}`}
             />
+
+            <FilterCard>
+                <form
+                    onSubmit={applyFilters}
+                    className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end"
+                >
+                    <Select
+                        className="sm:w-56"
+                        value={brandId}
+                        onChange={(e) => setBrandId(e.target.value)}
+                    >
+                        <option value="">Semua brand</option>
+                        {brands.map((b) => (
+                            <option key={b.id} value={b.id}>
+                                {b.name}
+                            </option>
+                        ))}
+                    </Select>
+                    <label className="flex flex-col gap-1 text-xs font-medium text-muted">
+                        Dari Tanggal
+                        <Input
+                            type="date"
+                            className="sm:w-44"
+                            value={dateFrom}
+                            onChange={(e) => setDateFrom(e.target.value)}
+                        />
+                    </label>
+                    <label className="flex flex-col gap-1 text-xs font-medium text-muted">
+                        Sampai Tanggal
+                        <Input
+                            type="date"
+                            className="sm:w-44"
+                            value={dateTo}
+                            onChange={(e) => setDateTo(e.target.value)}
+                        />
+                    </label>
+                    <Button
+                        type="submit"
+                        variant="default"
+                        className="h-11 rounded-xl px-5"
+                    >
+                        Terapkan
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        className="h-11 rounded-xl px-5"
+                        onClick={resetFilters}
+                    >
+                        Reset
+                    </Button>
+                </form>
+            </FilterCard>
 
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
                 {orderedKeys.slice(0, 8).map((key) => {
