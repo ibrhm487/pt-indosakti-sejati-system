@@ -31,15 +31,26 @@ class DashboardController extends Controller
             'stats' => $this->statsForRole($user, $role),
             'quarterly' => $this->quarterlyTargets(),
             'upcomingEvents' => $this->upcomingEvents($user, $role),
-            'schoolComparison' => $this->schoolComparison(),
+            // FJP student figures are scoped by fjp.view; roles without that
+            // permission (team, kitchen, warehouse, admin_event) get no data.
+            'schoolComparison' => $user->hasPermission('fjp.view') ? $this->schoolComparison() : [],
         ]);
     }
 
     private function statsForRole($user, ?string $role): array
     {
         $eventQuery = Event::query();
+        $reportQuery = EventReport::query();
+
         if ($role === 'pic') {
             $eventQuery->where('pic_id', $user->id);
+        } elseif ($role === 'team') {
+            $eventQuery->whereHas('teamMembers', fn ($q) => $q->where('user_id', $user->id));
+        }
+
+        // Event reports inherit the same ownership scope as their events.
+        if (in_array($role, ['pic', 'team'], true)) {
+            $reportQuery->whereIn('event_id', (clone $eventQuery)->select('events.id'));
         }
 
         $base = [
@@ -47,11 +58,15 @@ class DashboardController extends Controller
             'active_events' => (clone $eventQuery)->whereIn('status', [EventStatus::READY, EventStatus::ONGOING])->count(),
             'upcoming_events' => (clone $eventQuery)->whereDate('event_date', '>=', now())->count(),
             'completed_events' => (clone $eventQuery)->where('status', EventStatus::COMPLETED)->count(),
-            'pending_reports' => EventReport::query()->where('status', ReportStatus::SUBMITTED)->count(),
-            'events_revision' => EventReport::query()->where('status', ReportStatus::REVISION)->count(),
+            'pending_reports' => (clone $reportQuery)->where('status', ReportStatus::SUBMITTED)->count(),
+            'events_revision' => (clone $reportQuery)->where('status', ReportStatus::REVISION)->count(),
         ];
 
         $roleStats = match ($role) {
+            // Team and Admin per Event only receive the scoped event/report
+            // summary above; cross-module counters (permits, MRV, kitchen) are
+            // outside their permissions (§6: dashboard follows scope).
+            'team', 'admin_event' => [],
             'warehouse' => [
                 'total_sku' => Product::count(),
                 'low_stock' => Product::query()->whereHas('inventory', fn ($q) => $q->whereColumn('qty_on_hand', '<=', 'products.minimum_stock'))->count(),

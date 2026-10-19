@@ -73,6 +73,7 @@ const STAT_ORDER = [
     'upcoming_events',
     'completed_events',
     'pending_reports',
+    'events_revision',
     'total_sku',
     'low_stock',
     'pending_requests',
