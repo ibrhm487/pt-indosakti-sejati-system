@@ -9,6 +9,7 @@ use App\Models\KitchenRequest;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Support\EventAccess;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -28,9 +29,21 @@ class KitchenController extends Controller
             $query->where('status', $status);
         }
 
+        if ($eventId = $request->integer('event_id')) {
+            $query->where('event_id', $eventId);
+        }
+
+        if ($date = $request->string('date')->toString()) {
+            $query->where(function (Builder $query) use ($date) {
+                $query->whereDate('preparation_date', $date)
+                    ->orWhereHas('event', fn (Builder $eventQuery) => $eventQuery->whereDate('event_date', $date));
+            });
+        }
+
         $requests = $query->latest()->paginate(15)->withQueryString()->through(fn (KitchenRequest $r) => [
             'id' => $r->id,
             'event' => $r->event?->event_name,
+            'event_id' => $r->event_id,
             'event_date' => $r->event?->event_date?->toDateString(),
             'jug_quantity' => $r->jug_quantity,
             'preparation_date' => $r->preparation_date?->toDateString(),
@@ -41,9 +54,12 @@ class KitchenController extends Controller
 
         return Inertia::render('Kitchen/Index', [
             'requests' => $requests,
-            'filters' => $request->only('status'),
+            'filters' => $request->only('status', 'event_id', 'date'),
             'statuses' => collect(KitchenStatus::cases())->map(fn ($s) => ['value' => $s->value, 'label' => $s->label()]),
             'canCreate' => $request->user()->hasPermission('kitchen.manage'),
+            'filterEvents' => Event::whereHas('kitchenRequest')
+                ->orderBy('event_name')
+                ->get(['id', 'event_name']),
             ...$this->formOptions(),
         ]);
     }

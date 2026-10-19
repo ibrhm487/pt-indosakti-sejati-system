@@ -197,7 +197,7 @@ function workspaceForRole(
 
         case 'kitchen':
             return {
-                title: 'Kitchen',
+                title: 'Dapur & Higienitas',
                 subtitle:
                     'Jadwal produksi dari PIC, bukti foto masak, dan foto cuci jug',
                 tabs: [

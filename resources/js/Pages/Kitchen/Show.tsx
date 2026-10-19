@@ -3,8 +3,8 @@ import { Button, Card, CardContent, CardHeader, CardTitle, Field, Input, Select,
 import AppLayout from '@/Layouts/AppLayout';
 import { formatDate, formatDateTime } from '@/lib/utils';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { ClipboardList, Plus } from 'lucide-react';
-import { FormEvent, useState } from 'react';
+import { ClipboardList, ImageOff, Plus, Trash2 } from 'lucide-react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 
 type KitchenData = {
     id: number;
@@ -55,6 +55,41 @@ export default function KitchenShow({
         statusForm.setData('status', kitchen.status);
         statusForm.clearErrors();
         setStatusOpen(true);
+    };
+
+    const photoRef = useRef<HTMLInputElement | null>(null);
+    const washingRef = useRef<HTMLInputElement | null>(null);
+
+    const photoPreview = useMemo(
+        () => (reportForm.data.photo ? URL.createObjectURL(reportForm.data.photo) : null),
+        [reportForm.data.photo],
+    );
+    const washingPreview = useMemo(
+        () => (reportForm.data.washing_photo ? URL.createObjectURL(reportForm.data.washing_photo) : null),
+        [reportForm.data.washing_photo],
+    );
+
+    useEffect(
+        () => () => {
+            if (photoPreview) URL.revokeObjectURL(photoPreview);
+        },
+        [photoPreview],
+    );
+    useEffect(
+        () => () => {
+            if (washingPreview) URL.revokeObjectURL(washingPreview);
+        },
+        [washingPreview],
+    );
+
+    const clearPhoto = () => {
+        reportForm.setData('photo', null);
+        if (photoRef.current) photoRef.current.value = '';
+    };
+
+    const clearWashingPhoto = () => {
+        reportForm.setData('washing_photo', null);
+        if (washingRef.current) washingRef.current.value = '';
     };
 
     const submitStatus = (e: FormEvent) => {
@@ -242,16 +277,28 @@ export default function KitchenShow({
                     </Field>
                     <Field label="Foto Persiapan" error={reportForm.errors.photo} className="sm:col-span-2">
                         <Input
+                            ref={photoRef}
                             type="file"
                             accept="image/jpeg,image/png,image/webp,image/jpg"
                             onChange={(e) => reportForm.setData('photo', e.target.files?.[0] ?? null)}
                         />
+                        <PhotoPreview
+                            url={photoPreview}
+                            label="Preview foto persiapan"
+                            onClear={clearPhoto}
+                        />
                     </Field>
                     <Field label="Foto Cuci JUG" error={reportForm.errors.washing_photo} className="sm:col-span-2">
                         <Input
+                            ref={washingRef}
                             type="file"
                             accept="image/jpeg,image/png,image/webp,image/jpg"
                             onChange={(e) => reportForm.setData('washing_photo', e.target.files?.[0] ?? null)}
+                        />
+                        <PhotoPreview
+                            url={washingPreview}
+                            label="Preview foto cuci JUG"
+                            onClear={clearWashingPhoto}
                         />
                     </Field>
                 </div>
@@ -265,6 +312,37 @@ function Detail({ label, value, className }: { label: string; value: any; classN
         <div className={className}>
             <dt className="text-xs uppercase tracking-wide text-slate-400">{label}</dt>
             <dd className="mt-0.5 text-slate-800">{value || '-'}</dd>
+        </div>
+    );
+}
+
+function PhotoPreview({
+    url,
+    label,
+    onClear,
+}: {
+    url: string | null;
+    label: string;
+    onClear: () => void;
+}) {
+    if (!url) {
+        return (
+            <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-400">
+                <ImageOff className="h-3.5 w-3.5" /> Belum ada foto dipilih
+            </p>
+        );
+    }
+
+    return (
+        <div className="mt-2 space-y-2">
+            <img
+                src={url}
+                alt={label}
+                className="h-36 w-full rounded-lg border border-slate-200 bg-slate-50 object-contain"
+            />
+            <Button type="button" variant="outline" size="sm" onClick={onClear}>
+                <Trash2 className="h-3.5 w-3.5" /> Hapus Foto
+            </Button>
         </div>
     );
 }

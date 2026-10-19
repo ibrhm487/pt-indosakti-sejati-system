@@ -386,10 +386,10 @@ export function navForRole(
                     items: [dashboard],
                 },
                 {
-                    section: 'Kitchen',
+                    section: 'Dapur',
                     items: [
                         {
-                            label: 'Jadwal Kitchen',
+                            label: 'Dapur & Higienitas',
                             routeName: 'kitchen.index',
                             icon: <UtensilsCrossed className={ic} />,
                             permission: 'kitchen.view',

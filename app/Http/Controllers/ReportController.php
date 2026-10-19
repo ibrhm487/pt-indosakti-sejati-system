@@ -75,6 +75,23 @@ class ReportController extends Controller
             $query->whereHas('latestReport', fn (Builder $reportQuery) => $reportQuery->where('status', $status));
         }
 
+        if ($from = $request->string('date_from')->toString()) {
+            $query->whereDate('event_date', '>=', $from);
+        }
+
+        if ($to = $request->string('date_to')->toString()) {
+            $query->whereDate('event_date', '<=', $to);
+        }
+
+        $summary = [
+            'total' => (clone $query)->count(),
+            'reported' => (clone $query)->whereHas('latestReport')->count(),
+            'missing' => (clone $query)->whereDoesntHave('latestReport')->count(),
+            'submitted' => (clone $query)->whereHas('latestReport', fn (Builder $reportQuery) => $reportQuery->where('status', ReportStatus::SUBMITTED->value))->count(),
+            'revision' => (clone $query)->whereHas('latestReport', fn (Builder $reportQuery) => $reportQuery->where('status', ReportStatus::REVISION->value))->count(),
+            'verified' => (clone $query)->whereHas('latestReport', fn (Builder $reportQuery) => $reportQuery->where('status', ReportStatus::VERIFIED->value))->count(),
+        ];
+
         $events = $query->latest('event_date')->paginate(15)->withQueryString()->through(fn (Event $event) => [
             'id' => $event->id,
             'event_code' => $event->event_code,
@@ -98,7 +115,8 @@ class ReportController extends Controller
 
         return Inertia::render('Reports/ByEvent', [
             'events' => $events,
-            'filters' => $request->only('search', 'status'),
+            'filters' => $request->only('search', 'status', 'date_from', 'date_to'),
+            'summary' => $summary,
             'statuses' => collect(ReportStatus::cases())->map(fn ($s) => ['value' => $s->value, 'label' => $s->label()]),
         ]);
     }

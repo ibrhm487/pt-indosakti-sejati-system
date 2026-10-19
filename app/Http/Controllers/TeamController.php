@@ -26,12 +26,26 @@ class TeamController extends Controller
             $query->whereHas('teamMembers', fn ($q) => $q->where('user_id', $user->id));
         }
 
-        $events = $query->latest('event_date')->get()->map(fn (Event $event) => [
+        $today = now()->toDateString();
+        $eventsCollection = $query->get();
+        $upcoming = $eventsCollection
+            ->filter(fn (Event $event) => $event->event_date === null || $event->event_date->toDateString() >= $today)
+            ->sortBy('event_date')
+            ->values();
+        $past = $eventsCollection
+            ->filter(fn (Event $event) => $event->event_date !== null && $event->event_date->toDateString() < $today)
+            ->sortByDesc('event_date')
+            ->values();
+
+        $events = $upcoming->concat($past)->map(fn (Event $event) => [
             'id' => $event->id,
             'event_name' => $event->event_name,
             'event_date' => $event->event_date?->toDateString(),
             'brand' => $event->brand?->name,
             'pic' => $event->pic?->name,
+            'status' => $event->status->value,
+            'status_label' => $event->status->label(),
+            'is_today' => $event->event_date?->toDateString() === $today,
             'members' => $event->teamMembers->map(fn ($m) => [
                 'name' => $m->memberName(),
                 'position' => $m->position,
@@ -41,6 +55,15 @@ class TeamController extends Controller
         return Inertia::render('Team/Index', [
             'events' => $events,
             'teamMembers' => User::whereHas('roles', fn ($q) => $q->where('slug', 'team'))->get(['id', 'name', 'email']),
+            'activeRole' => $user->activeRoleSlug(),
+            'canCreateReport' => $user->hasPermission('reports.create'),
+            'canQuickReport' => $user->hasPermission('quick_reports.create'),
+            'summary' => [
+                'total' => $events->count(),
+                'today' => $events->where('is_today', true)->count(),
+                'upcoming' => $upcoming->count(),
+                'completed' => $events->where('status', 'completed')->count(),
+            ],
         ]);
     }
 }

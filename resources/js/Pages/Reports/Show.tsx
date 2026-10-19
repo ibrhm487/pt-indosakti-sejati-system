@@ -1,8 +1,9 @@
-import { Button, Card, CardContent, CardHeader, CardTitle, Field, Input, Modal, StatusBadge, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
+import { Button, Card, CardContent, CardHeader, CardTitle, Field, Input, Modal, StatCard, StatusBadge, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
 import AppLayout from '@/Layouts/AppLayout';
-import { formatDate, formatDateTime } from '@/lib/utils';
+import { formatDate, formatDateTime, formatNumber } from '@/lib/utils';
 import { Head } from '@inertiajs/react';
 import { router, useForm } from '@inertiajs/react';
+import { Percent, Target, TrendingUp } from 'lucide-react';
 import { useState } from 'react';
 
 export default function ReportsShow({
@@ -42,6 +43,36 @@ export default function ReportsShow({
     return (
         <AppLayout title="Detail Laporan">
             <Head title={`Laporan - ${report.event}`} />
+
+            <div className="mb-6 grid gap-4 sm:grid-cols-3">
+                <StatCard
+                    label="Target Sampling"
+                    value={formatNumber(report.sampling_target ?? 0)}
+                    icon={<Target className="h-5 w-5" />}
+                    tone="info"
+                />
+                <StatCard
+                    label="Realisasi Sampling"
+                    value={formatNumber(report.actual_sampling ?? 0)}
+                    icon={<TrendingUp className="h-5 w-5" />}
+                    tone="success"
+                />
+                <StatCard
+                    label="Pencapaian"
+                    value={report.achievement ? `${report.achievement.toFixed(1)}%` : '-'}
+                    icon={<Percent className="h-5 w-5" />}
+                    tone={
+                        report.achievement >= 100
+                            ? 'success'
+                            : report.achievement >= 75
+                              ? 'warning'
+                              : report.achievement > 0
+                                ? 'danger'
+                                : 'default'
+                    }
+                />
+            </div>
+
             <Card className="mb-6">
                 <CardHeader className="flex items-center justify-between">
                     <CardTitle>Detail Laporan</CardTitle>

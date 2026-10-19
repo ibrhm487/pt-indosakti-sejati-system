@@ -1,7 +1,7 @@
 import { Field, Input, Select, Textarea } from '@/Components/ui';
 import { InertiaFormProps } from '@inertiajs/react';
 import { Camera, PenLine } from 'lucide-react';
-import { ReactNode } from 'react';
+import { ReactNode, RefObject } from 'react';
 
 export type QuickReportEventOption = {
     id: number;
@@ -48,9 +48,11 @@ function Section({
 export default function QuickReportForm({
     form,
     events,
+    photoInputRef,
 }: {
     form: InertiaFormProps<QuickReportFormData>;
     events: QuickReportEventOption[];
+    photoInputRef?: RefObject<HTMLInputElement | null>;
 }) {
     const { data, setData, errors } = form;
 
@@ -98,6 +100,7 @@ export default function QuickReportForm({
                     error={errors.photo}
                 >
                     <Input
+                        ref={photoInputRef}
                         required
                         type="file"
                         accept="image/jpeg,image/png,image/webp"

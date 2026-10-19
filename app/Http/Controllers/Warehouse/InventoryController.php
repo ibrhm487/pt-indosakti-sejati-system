@@ -2,14 +2,17 @@
 
 namespace App\Http\Controllers\Warehouse;
 
+use App\Enums\MrvStatus;
 use App\Enums\StockMovementType;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Models\StockMovement;
+use App\Models\StockRequest;
 use App\Services\AuditLogger;
 use App\Services\StockService;
 use DomainException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -25,24 +28,50 @@ class InventoryController extends Controller
             });
         }
 
-        $products = $query->orderBy('name')->get()->map(fn (Product $product) => [
-            'id' => $product->id,
-            'name' => $product->name,
-            'sku' => $product->sku,
-            'brand' => $product->brand?->name,
-            'category' => $product->category?->name,
-            'unit' => $product->unit,
-            'on_hand' => $product->inventory?->qty_on_hand ?? 0,
-            'reserved' => $product->inventory?->qty_reserved ?? 0,
-            'available' => $product->availableStock(),
-            'minimum_stock' => $product->minimum_stock,
-            'status' => $product->stockStatus(),
-        ]);
+        $movementTotals = DB::table('stock_movements')
+            ->select('product_id', 'type', DB::raw('SUM(quantity) as total'))
+            ->groupBy('product_id', 'type')
+            ->get()
+            ->groupBy('product_id');
+
+        $allProducts = Product::query()->with('inventory')->get(['id', 'minimum_stock']);
+        $lowStock = $allProducts->count(fn (Product $p) => $p->stockStatus() === 'low_stock');
+        $outOfStock = $allProducts->count(fn (Product $p) => $p->stockStatus() === 'out_of_stock');
+
+        $products = $query->orderBy('name')->get()->map(function (Product $product) use ($movementTotals) {
+            $totals = $movementTotals->get($product->id) ?? collect();
+
+            return [
+                'id' => $product->id,
+                'name' => $product->name,
+                'sku' => $product->sku,
+                'brand' => $product->brand?->name,
+                'category' => $product->category?->name,
+                'unit' => $product->unit,
+                'stock_in' => (int) ($totals->get(StockMovementType::STOCK_IN->value)?->total ?? 0),
+                'stock_out' => (int) ($totals->get(StockMovementType::STOCK_OUT->value)?->total ?? 0),
+                'on_hand' => $product->inventory?->qty_on_hand ?? 0,
+                'reserved' => $product->inventory?->qty_reserved ?? 0,
+                'available' => $product->availableStock(),
+                'minimum_stock' => $product->minimum_stock,
+                'status' => $product->stockStatus(),
+            ];
+        });
+
+        $canApprove = $request->user()->hasPermission('warehouse.approve');
 
         return Inertia::render('Warehouse/Inventory/Index', [
             'products' => $products,
             'filters' => $request->only('search'),
             'can' => ['manage' => $request->user()->hasPermission('warehouse.manage')],
+            'summary' => [
+                'total_products' => $allProducts->count(),
+                'low_stock' => $lowStock,
+                'out_of_stock' => $outOfStock,
+                'mrv_pending' => $canApprove
+                    ? StockRequest::query()->where('status', MrvStatus::PENDING)->count()
+                    : null,
+            ],
         ]);
     }
 

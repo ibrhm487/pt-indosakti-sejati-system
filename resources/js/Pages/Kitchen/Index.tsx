@@ -6,7 +6,7 @@ import {
     KitchenFormFields,
     KitchenStaffOption,
 } from '@/Components/KitchenForm';
-import { Button, Modal, Select, StatusBadge, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
+import { Button, Input, Modal, Select, StatusBadge, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
 import AppLayout from '@/Layouts/AppLayout';
 import { formatDate } from '@/lib/utils';
 import { Head, Link, router, useForm } from '@inertiajs/react';
@@ -20,21 +20,36 @@ export default function KitchenIndex({
     canCreate,
     events,
     staff,
+    filterEvents,
 }: {
     requests: any;
-    filters: { status?: string };
+    filters: { status?: string; event_id?: string | number; date?: string };
     statuses: { value: string; label: string }[];
     canCreate: boolean;
     events: KitchenEventOption[];
     staff: KitchenStaffOption[];
+    filterEvents: { id: number; event_name: string }[];
 }) {
     const [status, setStatus] = useState(filters.status ?? '');
+    const [eventId, setEventId] = useState(filters.event_id ? String(filters.event_id) : '');
+    const [date, setDate] = useState(filters.date ?? '');
     const [open, setOpen] = useState(false);
     const form = useForm<KitchenFormData>(EMPTY_KITCHEN_FORM);
 
     const submit = (e: FormEvent) => {
         e.preventDefault();
-        router.get(route('kitchen.index'), { status }, { preserveState: true });
+        router.get(
+            route('kitchen.index'),
+            { status: status || undefined, event_id: eventId || undefined, date: date || undefined },
+            { preserveState: true },
+        );
+    };
+
+    const reset = () => {
+        setStatus('');
+        setEventId('');
+        setDate('');
+        router.get(route('kitchen.index'), {}, { preserveState: true });
     };
 
     const openCreate = () => {
@@ -55,9 +70,9 @@ export default function KitchenIndex({
     };
 
     return (
-        <AppLayout title="Kitchen">
-            <Head title="Kitchen" />
-            <PageHeader title="Tugas Kitchen" subtitle="Daftar permintaan JUG">
+        <AppLayout title="Dapur & Higienitas">
+            <Head title="Dapur & Higienitas" />
+            <PageHeader title="Dapur & Higienitas" subtitle="Daftar tugas persiapan JUG dan laporan higienitas">
                 {canCreate && (
                     <Button variant="primary" onClick={openCreate}>
                         <Plus className="h-4 w-4" /> Tugas Kitchen
@@ -66,17 +81,54 @@ export default function KitchenIndex({
             </PageHeader>
 
             <FilterCard>
-                <form onSubmit={submit} className="flex flex-col gap-3 sm:flex-row">
-                    <Select className="sm:w-56" value={status} onChange={(e) => setStatus(e.target.value)}>
-                        <option value="">Semua status</option>
-                        {statuses.map((s) => (
-                            <option key={s.value} value={s.value}>
-                                {s.label}
-                            </option>
-                        ))}
-                    </Select>
+                <form onSubmit={submit} className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                    <label className="flex flex-col gap-1 text-xs font-medium text-slate-500">
+                        Event
+                        <Select
+                            aria-label="Filter event"
+                            className="sm:w-56"
+                            value={eventId}
+                            onChange={(e) => setEventId(e.target.value)}
+                        >
+                            <option value="">Semua event</option>
+                            {filterEvents.map((event) => (
+                                <option key={event.id} value={event.id}>
+                                    {event.event_name}
+                                </option>
+                            ))}
+                        </Select>
+                    </label>
+                    <label className="flex flex-col gap-1 text-xs font-medium text-slate-500">
+                        Tanggal
+                        <Input
+                            aria-label="Filter tanggal"
+                            type="date"
+                            className="sm:w-44"
+                            value={date}
+                            onChange={(e) => setDate(e.target.value)}
+                        />
+                    </label>
+                    <label className="flex flex-col gap-1 text-xs font-medium text-slate-500">
+                        Status
+                        <Select
+                            aria-label="Filter status"
+                            className="sm:w-56"
+                            value={status}
+                            onChange={(e) => setStatus(e.target.value)}
+                        >
+                            <option value="">Semua status</option>
+                            {statuses.map((s) => (
+                                <option key={s.value} value={s.value}>
+                                    {s.label}
+                                </option>
+                            ))}
+                        </Select>
+                    </label>
                     <Button type="submit" variant="default" className="h-11 rounded-xl px-5">
                         Terapkan
+                    </Button>
+                    <Button type="button" variant="ghost" className="h-11 rounded-xl px-5" onClick={reset}>
+                        Reset
                     </Button>
                 </form>
             </FilterCard>

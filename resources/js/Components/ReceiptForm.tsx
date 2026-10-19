@@ -1,7 +1,7 @@
 import { Button, Card, CardContent, Field, Input, Select, Textarea } from '@/Components/ui';
 import AppLayout from '@/Layouts/AppLayout';
 import { Head, Link, InertiaFormProps, useForm } from '@inertiajs/react';
-import { Camera, PackagePlus, StickyNote, Truck } from 'lucide-react';
+import { Camera, History, PackagePlus, StickyNote, Truck } from 'lucide-react';
 import { FormEvent, ReactNode } from 'react';
 
 export type ReceiptProduct = { id: number; name: string; sku: string; unit: string };
@@ -118,7 +118,23 @@ export function ReceiptFormFields({
     );
 }
 
-export default function ReceiptForm({ products }: { products: ReceiptProduct[] }) {
+export type RecentMovement = {
+    id: number;
+    product: string | null;
+    type: string;
+    type_label: string;
+    quantity: number;
+    balance_after: number;
+    at: string | null;
+};
+
+export default function ReceiptForm({
+    products,
+    recentMovements = [],
+}: {
+    products: ReceiptProduct[];
+    recentMovements?: RecentMovement[];
+}) {
     const form = useForm<ReceiptFormData>(emptyReceiptForm());
 
     const submit = (e: FormEvent) => {
@@ -129,24 +145,80 @@ export default function ReceiptForm({ products }: { products: ReceiptProduct[] }
     return (
         <AppLayout title="Catat Barang Masuk">
             <Head title="Catat Barang Masuk" />
-            <form onSubmit={submit}>
-                <Card className="mb-6">
-                    <CardContent className="pt-6">
-                        <ReceiptFormFields form={form} products={products} />
-                    </CardContent>
-                </Card>
+            <div className="grid gap-6 lg:grid-cols-3">
+                <form onSubmit={submit} className="lg:col-span-2">
+                    <Card className="mb-6">
+                        <CardContent className="pt-6">
+                            <ReceiptFormFields form={form} products={products} />
+                        </CardContent>
+                    </Card>
 
-                <div className="flex items-center gap-2">
-                    <Button type="submit" variant="primary" disabled={form.processing}>
-                        {form.processing ? 'Menyimpan…' : 'Simpan'}
-                    </Button>
-                    <Link href={route('warehouse.receipts.index')}>
-                        <Button type="button" variant="outline">
-                            Batal
+                    <div className="flex items-center gap-2">
+                        <Button type="submit" variant="primary" disabled={form.processing}>
+                            {form.processing ? 'Menyimpan…' : 'Simpan'}
                         </Button>
-                    </Link>
-                </div>
-            </form>
+                        <Link href={route('warehouse.receipts.index')}>
+                            <Button type="button" variant="outline">
+                                Batal
+                            </Button>
+                        </Link>
+                    </div>
+                </form>
+
+                <aside className="h-fit">
+                    <Card>
+                        <CardContent className="pt-6">
+                            <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                                <History className="h-3.5 w-3.5" /> Transaksi Terakhir
+                            </p>
+                            {recentMovements.length === 0 ? (
+                                <p className="mt-3 text-sm text-slate-400">
+                                    Belum ada pergerakan stok tercatat.
+                                </p>
+                            ) : (
+                                <div className="mt-3 overflow-x-auto">
+                                    <table className="w-full text-left text-sm">
+                                        <thead>
+                                            <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-400">
+                                                <th className="py-2 pr-3 font-medium">Barang</th>
+                                                <th className="py-2 pr-3 font-medium">Jenis</th>
+                                                <th className="py-2 pr-3 text-right font-medium">Qty</th>
+                                                <th className="py-2 text-right font-medium">Saldo</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {recentMovements.map((m) => (
+                                                <tr key={m.id} className="border-b border-slate-100 last:border-0">
+                                                    <td className="py-2 pr-3">
+                                                        <p className="font-medium text-slate-700">{m.product ?? '-'}</p>
+                                                        <p className="text-xs text-slate-400">{m.at}</p>
+                                                    </td>
+                                                    <td className="py-2 pr-3 text-slate-600">
+                                                        {m.type_label}
+                                                    </td>
+                                                    <td
+                                                        className={`py-2 pr-3 text-right ${
+                                                            m.type === 'stock_out' || m.type === 'damage'
+                                                                ? 'text-red-600'
+                                                                : 'text-emerald-700'
+                                                        }`}
+                                                    >
+                                                        {m.type === 'stock_out' || m.type === 'damage' ? '-' : '+'}
+                                                        {m.quantity}
+                                                    </td>
+                                                    <td className="py-2 text-right font-medium text-slate-700">
+                                                        {m.balance_after}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </aside>
+            </div>
         </AppLayout>
     );
 }

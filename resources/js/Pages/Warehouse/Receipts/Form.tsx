@@ -1,5 +1,11 @@
-import ReceiptForm, { ReceiptProduct } from '@/Components/ReceiptForm';
+import ReceiptForm, { RecentMovement, ReceiptProduct } from '@/Components/ReceiptForm';
 
-export default function ReceiptFormPage({ products }: { products: ReceiptProduct[] }) {
-    return <ReceiptForm products={products} />;
+export default function ReceiptFormPage({
+    products,
+    recentMovements,
+}: {
+    products: ReceiptProduct[];
+    recentMovements?: RecentMovement[];
+}) {
+    return <ReceiptForm products={products} recentMovements={recentMovements} />;
 }

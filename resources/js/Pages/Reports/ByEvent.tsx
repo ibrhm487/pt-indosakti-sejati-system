@@ -1,8 +1,9 @@
 import { CardTable, EmptyState, FilterCard, PageHeader, Pagination, SearchInput } from '@/Components/AppBits';
-import { Button, Select, StatusBadge, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
+import { Button, Input, Select, StatCard, StatusBadge, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
 import AppLayout from '@/Layouts/AppLayout';
 import { formatDate, formatNumber } from '@/lib/utils';
 import { Head, Link, router } from '@inertiajs/react';
+import { CalendarCheck, CircleCheck, CircleDashed, Clock, ShieldCheck } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 
 type EventReport = {
@@ -39,22 +40,51 @@ type Paginator = {
 export default function ReportsByEvent({
     events,
     filters,
+    summary,
     statuses,
 }: {
     events: Paginator;
-    filters: { search?: string; status?: string };
+    filters: {
+        search?: string;
+        status?: string;
+        date_from?: string;
+        date_to?: string;
+    };
+    summary: {
+        total: number;
+        reported: number;
+        missing: number;
+        submitted: number;
+        revision: number;
+        verified: number;
+    };
     statuses: { value: string; label: string }[];
 }) {
     const [search, setSearch] = useState(filters.search ?? '');
     const [status, setStatus] = useState(filters.status ?? '');
+    const [dateFrom, setDateFrom] = useState(filters.date_from ?? '');
+    const [dateTo, setDateTo] = useState(filters.date_to ?? '');
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
         router.get(
             route('reports.by-event'),
-            { search: search || undefined, status: status || undefined },
+            {
+                search: search || undefined,
+                status: status || undefined,
+                date_from: dateFrom || undefined,
+                date_to: dateTo || undefined,
+            },
             { preserveState: true },
         );
+    };
+
+    const reset = () => {
+        setSearch('');
+        setStatus('');
+        setDateFrom('');
+        setDateTo('');
+        router.get(route('reports.by-event'), {}, { preserveState: true });
     };
 
     return (
@@ -69,8 +99,41 @@ export default function ReportsByEvent({
                 </Link>
             </PageHeader>
 
+            <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+                <StatCard
+                    label="Total Event"
+                    value={formatNumber(summary.total)}
+                    icon={<CalendarCheck className="h-5 w-5" />}
+                    tone="info"
+                />
+                <StatCard
+                    label="Dengan Laporan"
+                    value={formatNumber(summary.reported)}
+                    icon={<CircleCheck className="h-5 w-5" />}
+                    tone="success"
+                />
+                <StatCard
+                    label="Belum Ada Laporan"
+                    value={formatNumber(summary.missing)}
+                    icon={<CircleDashed className="h-5 w-5" />}
+                    tone="warning"
+                />
+                <StatCard
+                    label="Menunggu Verifikasi"
+                    value={formatNumber(summary.submitted + summary.revision)}
+                    hint={`${summary.revision} perlu revisi`}
+                    icon={<Clock className="h-5 w-5" />}
+                />
+                <StatCard
+                    label="Terverifikasi"
+                    value={formatNumber(summary.verified)}
+                    icon={<ShieldCheck className="h-5 w-5" />}
+                    tone="success"
+                />
+            </div>
+
             <FilterCard>
-                <form onSubmit={submit} className="flex flex-col gap-3 sm:flex-row">
+                <form onSubmit={submit} className="flex flex-col gap-3 sm:flex-row sm:items-end">
                     <SearchInput
                         aria-label="Cari event"
                         placeholder="Cari nama atau kode event"
@@ -90,8 +153,34 @@ export default function ReportsByEvent({
                             </option>
                         ))}
                     </Select>
+                    <label className="flex flex-col gap-1 text-xs font-medium text-slate-500">
+                        Dari Tanggal
+                        <Input
+                            type="date"
+                            className="sm:w-44"
+                            value={dateFrom}
+                            onChange={(event) => setDateFrom(event.target.value)}
+                        />
+                    </label>
+                    <label className="flex flex-col gap-1 text-xs font-medium text-slate-500">
+                        Sampai Tanggal
+                        <Input
+                            type="date"
+                            className="sm:w-44"
+                            value={dateTo}
+                            onChange={(event) => setDateTo(event.target.value)}
+                        />
+                    </label>
                     <Button type="submit" variant="default" className="h-11 rounded-xl px-5">
                         Terapkan
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        className="h-11 rounded-xl px-5"
+                        onClick={reset}
+                    >
+                        Reset
                     </Button>
                 </form>
             </FilterCard>

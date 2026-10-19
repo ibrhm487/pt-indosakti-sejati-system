@@ -59,11 +59,13 @@ class FjpController extends Controller
         }
 
         $fjps = $query->with(['brand:id,name'])
+            ->withCount('attachments')
             ->latest()
             ->paginate(15)
             ->withQueryString()
             ->through(fn (Fjp $fjp) => [
                 'id' => $fjp->id,
+                'attachments_count' => (int) $fjp->attachments_count,
                 'fjp_number' => $fjp->fjp_number,
                 'event_name' => $fjp->event_name,
                 'brand' => $fjp->brand?->name,

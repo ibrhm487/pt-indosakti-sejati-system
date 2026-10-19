@@ -63,8 +63,13 @@ class QuickReportController extends Controller
             ->orderBy('event_date')
             ->get(['id', 'event_name', 'event_date']);
 
+        $requestedEventId = (int) $request->query('event', 0);
+
         return Inertia::render('QuickReports/Create', [
             'events' => $events,
+            'initialEventId' => $requestedEventId > 0 && $events->contains('id', $requestedEventId)
+                ? $requestedEventId
+                : null,
         ]);
     }
 

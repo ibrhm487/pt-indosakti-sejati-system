@@ -24,12 +24,13 @@ import {
 import AppLayout from '@/Layouts/AppLayout';
 import { cn, formatNumber } from '@/lib/utils';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { MapPin, Pencil, Plus, Trash2 } from 'lucide-react';
+import { MapPin, Paperclip, Pencil, Plus, Trash2 } from 'lucide-react';
 import { FormEvent, useEffect, useState } from 'react';
 import { EMPTY_FJP_FORM, FjpFormData, FjpFormFields, FjpFormOptions } from './Form';
 
 type FjpRow = {
     id: number;
+    attachments_count: number;
     fjp_number: string;
     event_name: string;
     brand: string | null;
@@ -271,6 +272,7 @@ export default function FjpIndex({
                                     <TH>Keterangan</TH>
                                     <TH>Alamat</TH>
                                     <TH>Link Lokasi</TH>
+                                    <TH>Lampiran</TH>
                                     <TH className="text-right">Aksi</TH>
                                 </TR>
                             </THead>
@@ -388,6 +390,20 @@ export default function FjpIndex({
                                                     </a>
                                                 )}
                                             </div>
+                                        </TD>
+                                        <TD>
+                                            {f.attachments_count > 0 ? (
+                                                <Link
+                                                    href={route('fjp.show', f.id)}
+                                                    className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600 hover:bg-indigo-50 hover:text-indigo-700"
+                                                    title="Buka lampiran surat izin"
+                                                >
+                                                    <Paperclip className="h-3.5 w-3.5" />
+                                                    {f.attachments_count} berkas
+                                                </Link>
+                                            ) : (
+                                                <span className="text-xs text-slate-300">—</span>
+                                            )}
                                         </TD>
                                         <TD className="text-right">
                                             <div className="flex items-center justify-end gap-1">

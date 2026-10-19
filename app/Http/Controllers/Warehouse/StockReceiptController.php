@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Warehouse;
 
 use App\Http\Controllers\Controller;
 use App\Models\Product;
+use App\Models\StockMovement;
 use App\Models\StockReceipt;
 use App\Services\AuditLogger;
 use App\Services\StockService;
@@ -41,6 +42,20 @@ class StockReceiptController extends Controller
     {
         return Inertia::render('Warehouse/Receipts/Form', [
             'products' => Product::where('is_active', true)->orderBy('name')->get(['id', 'name', 'sku', 'unit']),
+            'recentMovements' => StockMovement::query()
+                ->with('product:id,name,sku')
+                ->latest()
+                ->limit(8)
+                ->get()
+                ->map(fn (StockMovement $m) => [
+                    'id' => $m->id,
+                    'product' => $m->product?->name,
+                    'type' => $m->type->value,
+                    'type_label' => $m->type->label(),
+                    'quantity' => $m->quantity,
+                    'balance_after' => $m->balance_after,
+                    'at' => $m->created_at?->format('d/m/Y H:i'),
+                ]),
         ]);
     }
 
