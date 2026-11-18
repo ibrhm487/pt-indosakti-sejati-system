@@ -458,26 +458,8 @@ class FjpController extends Controller
             'totalCount' => (clone $base)->count(),
             'canAssignTeam' => $canAssignTeam,
             'canAssignTeamMembers' => $canAssignTeamMembers,
-            'canManageTeamSchedules' => $canAssignTeamMembers,
             'teamScheduleDate' => $teamScheduleDate,
             'teamScheduleCandidates' => $teamScheduleCandidates,
-            'teamPersonnel' => $canAssignTeamMembers
-                ? Personnel::query()
-                    ->where('is_active', true)
-                    ->whereHas('user', fn ($query) => $query
-                        ->where('is_active', true)
-                        ->whereHas('roles', fn ($roles) => $roles->where('slug', 'team')))
-                    ->with('user:id,name,phone')
-                    ->orderBy('name')
-                    ->get(['id', 'user_id', 'name', 'role', 'phone'])
-                    ->map(fn (Personnel $personnel): array => [
-                        'id' => (int) $personnel->id,
-                        'user_id' => (int) $personnel->user_id,
-                        'name' => $personnel->name,
-                        'role' => $personnel->role,
-                        'phone' => $personnel->phone ?? $personnel->user?->phone,
-                    ])
-                : [],
             'canUpdateStatus' => $user->hasPermission('fjp.status.update'),
             'statusOptions' => collect(self::STATUS_OPTIONS)->map(fn ($label, $value) => [
                 'value' => $value,

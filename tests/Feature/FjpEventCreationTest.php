@@ -535,12 +535,13 @@ class FjpEventCreationTest extends TestCase
         $event->update(['status' => EventStatus::PLANNING]);
 
         $this->actingAs($pic)
-            ->get(route('fjp.index', ['search' => 'SDN Tim Perencanaan']))
+            ->get(route('fjp.team-assignment', ['search' => 'SDN Tim Perencanaan']))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('canManageTeamSchedules', true)
-                ->where('fjps.data.0.id', $fjp->id)
-                ->where('fjps.data.0.team.editable', true));
+                ->component('Fjp/TeamAssignment')
+                ->where('canAssignTeamMembers', true)
+                ->where('rows.data.0.id', $fjp->id)
+                ->where('rows.data.0.team_editable', true));
 
         $this->actingAs($pic)
             ->from(route('fjp.index'))
@@ -637,11 +638,12 @@ class FjpEventCreationTest extends TestCase
         $this->assertDatabaseMissing('events', ['fjp_id' => $fjp->id]);
     }
 
-    public function test_pic_sees_saved_team_management_actions(): void
+    public function test_pic_sees_saved_team_assignment_on_the_dedicated_page(): void
     {
         $pic = $this->user('pic@indosakti.com');
         $teamUsers = $this->createTeamUsers(2);
         $fjp = $this->createFjp([
+            'school_name' => 'SDN PIC Pembagian Tersimpan',
             'city' => 'Jakarta Selatan',
             'province' => 'DKI Jakarta',
             'status' => Fjp::STATUS_CONFIRM,
@@ -649,28 +651,35 @@ class FjpEventCreationTest extends TestCase
         $event = $this->createSavedTeamGroup($pic, $teamUsers, $fjp, today()->addDays(2)->toDateString());
 
         $this->actingAs($pic)
-            ->get(route('fjp.index'))
+            ->get(route('fjp.team-assignment', ['search' => 'SDN PIC Pembagian Tersimpan']))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
+                ->component('Fjp/TeamAssignment')
                 ->where('canAssignTeamMembers', true)
                 ->where('canAssignTeam', false)
-                ->where('canManageTeamSchedules', true)
-                ->where('fjps.data.0.team.team_group_id', $event->team_group_id)
-                ->where('fjps.data.0.team.editable', true)
-                ->where('fjps.data.0.team.members.0.user_id', $teamUsers[0]->id));
+                ->where('rows.data.0.team_group_id', $event->team_group_id)
+                ->where('rows.data.0.team_editable', true)
+                ->where('rows.data.0.team_members.0.user_id', $teamUsers[0]->id));
     }
 
-    public function test_permitter_does_not_see_saved_team_management_actions(): void
+    public function test_permitter_can_assign_teams_but_not_team_members_on_the_dedicated_page(): void
     {
         $permitter = $this->user('permitter@indosakti.com');
+        $fjp = $this->createFjp([
+            'school_name' => 'SDN Permit Pembagian',
+            'city' => 'Jakarta Selatan',
+            'status' => Fjp::STATUS_CONFIRM,
+        ]);
 
         $this->actingAs($permitter)
-            ->get(route('fjp.index'))
+            ->get(route('fjp.team-assignment', ['search' => 'SDN Permit Pembagian']))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
+                ->component('Fjp/TeamAssignment')
                 ->where('canAssignTeam', true)
                 ->where('canAssignTeamMembers', false)
-                ->where('canManageTeamSchedules', false));
+                ->where('rows.data.0.id', $fjp->id)
+                ->where('rows.data.0.team_members', []));
     }
 
     public function test_permitter_cannot_edit_saved_team_members(): void

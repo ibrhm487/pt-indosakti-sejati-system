@@ -414,8 +414,7 @@ class FjpWorkflowTest extends TestCase
                 ->where('fjps.data.0.id', $fjp->id)
                 ->where('fjps.data.0.planned_team_group_id', $fjp->team_group_id)
                 ->where('fjps.data.0.planned_team_group_label', 'Tim 4')
-                ->where('fjps.data.0.planned_team_group_fjp_ids', [$fjp->id])
-                ->has('teamPersonnel'));
+                ->where('fjps.data.0.planned_team_group_fjp_ids', [$fjp->id]));
     }
 
     public function test_pic_sees_permitter_team_number_and_school_order_by_start_time_before_member_assignment(): void
