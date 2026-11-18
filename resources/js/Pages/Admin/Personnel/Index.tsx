@@ -7,17 +7,19 @@ import { useState } from 'react';
 
 export default function AdminPersonnelIndex({
     personnel,
+    teamUsers,
     filters,
 }: {
     personnel: any;
+    teamUsers: { id: number; name: string; email: string }[];
     filters: { search?: string };
 }) {
     const [search, setSearch] = useState(filters.search ?? '');
     const [addOpen, setAddOpen] = useState(false);
     const [editing, setEditing] = useState<any | null>(null);
 
-    const addForm = useForm({ name: '', role: '', phone: '', is_active: true });
-    const editForm = useForm({ name: '', role: '', phone: '', is_active: true });
+    const addForm = useForm({ name: '', role: '', phone: '', is_active: true, user_id: '' });
+    const editForm = useForm({ name: '', role: '', phone: '', is_active: true, user_id: '' });
 
     const submitSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -42,6 +44,7 @@ export default function AdminPersonnelIndex({
             role: p.role ?? '',
             phone: p.phone ?? '',
             is_active: !!p.is_active,
+            user_id: p.user_id ? String(p.user_id) : '',
         });
     };
 
@@ -87,6 +90,7 @@ export default function AdminPersonnelIndex({
                                     <TH>Nama</TH>
                                     <TH>Peran</TH>
                                     <TH>Telepon</TH>
+                                    <TH>Akun Tim</TH>
                                     <TH>Status</TH>
                                     <TH className="text-right">Aksi</TH>
                                 </TR>
@@ -97,6 +101,7 @@ export default function AdminPersonnelIndex({
                                         <TD className="font-medium text-text">{p.name}</TD>
                                         <TD>{p.role ?? '-'}</TD>
                                         <TD>{p.phone ?? '-'}</TD>
+                                        <TD>{p.user?.name ?? '-'}</TD>
                                         <TD>
                                             <Badge variant={p.is_active ? 'success' : 'danger'}>
                                                 {p.is_active ? 'Aktif' : 'Nonaktif'}
@@ -137,7 +142,7 @@ export default function AdminPersonnelIndex({
                 submitLabel={addForm.processing ? 'Menyimpan…' : 'Tambah'}
                 submitDisabled={addForm.processing}
             >
-                <PersonnelFields form={addForm} />
+                <PersonnelFields form={addForm} teamUsers={teamUsers} />
             </ModalForm>
 
             <ModalForm
@@ -148,13 +153,19 @@ export default function AdminPersonnelIndex({
                 submitLabel={editForm.processing ? 'Menyimpan…' : 'Simpan'}
                 submitDisabled={editForm.processing}
             >
-                <PersonnelFields form={editForm} />
+                <PersonnelFields form={editForm} teamUsers={teamUsers} />
             </ModalForm>
         </AppLayout>
     );
 }
 
-function PersonnelFields({ form }: { form: any }) {
+function PersonnelFields({
+    form,
+    teamUsers,
+}: {
+    form: any;
+    teamUsers: { id: number; name: string; email: string }[];
+}) {
     const { data, setData, errors } = form;
     return (
         <div className="grid gap-4 sm:grid-cols-2">
@@ -166,6 +177,23 @@ function PersonnelFields({ form }: { form: any }) {
             </Field>
             <Field label="Telepon" error={errors.phone}>
                 <Input value={data.phone} onChange={(e) => setData('phone', e.target.value)} />
+            </Field>
+            <Field label="Akun role Tim" error={errors.user_id}>
+                <select
+                    className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-text"
+                    value={data.user_id}
+                    onChange={(event) => setData('user_id', event.target.value)}
+                >
+                    <option value="">Belum ditautkan</option>
+                    {teamUsers.map((user) => (
+                        <option key={user.id} value={user.id}>
+                            {user.name} · {user.email}
+                        </option>
+                    ))}
+                </select>
+                <p className="mt-1 text-xs text-muted">
+                    Tautan ini membuat jadwal personel terlihat pada akun Tim yang sesuai.
+                </p>
             </Field>
             <Field label="Status" className="flex items-center gap-2 pt-6">
                 <input

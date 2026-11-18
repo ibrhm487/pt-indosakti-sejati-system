@@ -13,6 +13,7 @@ type Target = {
     quarter: number;
     start_month: number;
     target_cups: number;
+    target_shifts: number;
 };
 
 export default function QuarterlyTargetsIndex({
@@ -33,7 +34,7 @@ export default function QuarterlyTargetsIndex({
             <Head title="Target Kuartal" />
             <QuarterlyTargetsEditor
                 title="Pengaturan Target Kuartal"
-                subtitle="Target cup per brand untuk setiap kuartal, dipakai sebagai acuan realisasi laporan."
+                subtitle="Target shift dan cups per brand untuk tiap kuartal; realisasi mengikuti pengeluaran produk MRV dari gudang."
                 brands={brands}
                 brandId={brandId}
                 year={year}

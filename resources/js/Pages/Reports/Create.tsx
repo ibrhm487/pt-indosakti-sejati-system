@@ -13,10 +13,20 @@ import { FormEvent } from 'react';
 
 export default function ReportsCreate({
     events,
+    initialEventId,
 }: {
     events: ReportEventOption[];
+    initialEventId?: number | null;
 }) {
-    const form = useForm<ReportFormData>(EMPTY_REPORT_FORM);
+    const initialEvent = events.find((event) => String(event.id) === String(initialEventId ?? ''));
+    const form = useForm<ReportFormData>({
+        ...EMPTY_REPORT_FORM,
+        event_id: initialEventId ? String(initialEventId) : '',
+        sampling_target:
+            initialEvent?.sampling_target !== null && initialEvent?.sampling_target !== undefined
+                ? String(initialEvent.sampling_target)
+                : '',
+    });
     const { post, processing } = form;
 
     const submit = (e: FormEvent) => {

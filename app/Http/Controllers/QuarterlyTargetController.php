@@ -2,10 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\ReportStatus;
 use App\Models\Brand;
-use App\Models\EventReport;
 use App\Models\QuarterlyTarget;
+use App\Services\QuarterlyTargetMetrics;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -18,13 +17,13 @@ class QuarterlyTargetController extends Controller
      * Operational "Target Kuartal per Brand" page (admin + permitter):
      * one row per active brand for the selected year/quarter.
      */
-    public function index(Request $request): Response
+    public function index(Request $request, QuarterlyTargetMetrics $metrics): Response
     {
         $year = $this->year($request);
         $quarter = $this->quarter($request);
         [$start, $end] = $this->quarterBounds($year, $quarter);
 
-        $actualByBrand = $this->actualCupsByBrand($start, $end);
+        $actualByBrand = $metrics->issuedTotalsByBrand($start, $end);
 
         $brands = Brand::query()
             ->where('is_active', true)
@@ -35,10 +34,12 @@ class QuarterlyTargetController extends Controller
                     ->where('brand_id', $brand->id)
                     ->where('year', $year)
                     ->where('quarter', $quarter)
-                    ->first(['target_cups']);
+                    ->first(['target_cups', 'target_shifts']);
 
                 $target = (int) ($configured?->target_cups ?? $brand->quarterly_target_cups ?? 0);
-                $actual = (int) ($actualByBrand[$brand->id] ?? 0);
+                $actual = (int) ($actualByBrand[$brand->id]['cups'] ?? 0);
+                $actualShifts = (int) ($actualByBrand[$brand->id]['shifts'] ?? 0);
+                $targetShifts = (int) ($configured?->target_shifts ?? 0);
 
                 return [
                     'id' => $brand->id,
@@ -46,6 +47,9 @@ class QuarterlyTargetController extends Controller
                     'target_cups' => $target,
                     'actual_cups' => $actual,
                     'percentage' => $target > 0 ? round(($actual / $target) * 100, 1) : 0.0,
+                    'target_shifts' => $targetShifts,
+                    'actual_shifts' => $actualShifts,
+                    'shift_percentage' => $targetShifts > 0 ? round(($actualShifts / $targetShifts) * 100, 1) : 0.0,
                     'is_configured' => $configured !== null,
                 ];
             })
@@ -71,19 +75,18 @@ class QuarterlyTargetController extends Controller
             'year' => ['required', 'integer', 'min:2020', 'max:2100'],
             'quarter' => ['required', 'integer', 'min:1', 'max:4'],
             'target_cups' => ['required', 'integer', 'min:0'],
+            'target_shifts' => ['sometimes', 'integer', 'min:0'],
         ]);
 
-        QuarterlyTarget::updateOrCreate(
-            [
-                'brand_id' => $brand->id,
-                'year' => $data['year'],
-                'quarter' => $data['quarter'],
-            ],
-            [
-                'start_month' => ($data['quarter'] - 1) * 3 + 1,
-                'target_cups' => $data['target_cups'],
-            ],
-        );
+        $target = QuarterlyTarget::query()->firstOrNew([
+            'brand_id' => $brand->id,
+            'year' => $data['year'],
+            'quarter' => $data['quarter'],
+        ]);
+        $target->start_month = ($data['quarter'] - 1) * 3 + 1;
+        $target->target_cups = $data['target_cups'];
+        $target->target_shifts = $data['target_shifts'] ?? $target->target_shifts ?? 0;
+        $target->save();
 
         return back()->with('success', 'Target quartal berhasil disimpan.');
     }
@@ -123,20 +126,19 @@ class QuarterlyTargetController extends Controller
             'targets.*.quarter' => ['required', 'integer', 'min:1', 'max:4'],
             'targets.*.start_month' => ['required', 'integer', 'min:1', 'max:12'],
             'targets.*.target_cups' => ['required', 'integer', 'min:0'],
+            'targets.*.target_shifts' => ['sometimes', 'integer', 'min:0'],
         ]);
 
         foreach ($data['targets'] as $t) {
-            QuarterlyTarget::updateOrCreate(
-                [
-                    'brand_id' => $data['brand_id'],
-                    'year' => $data['year'],
-                    'quarter' => $t['quarter'],
-                ],
-                [
-                    'start_month' => $t['start_month'],
-                    'target_cups' => $t['target_cups'],
-                ],
-            );
+            $target = QuarterlyTarget::query()->firstOrNew([
+                'brand_id' => $data['brand_id'],
+                'year' => $data['year'],
+                'quarter' => $t['quarter'],
+            ]);
+            $target->start_month = $t['start_month'];
+            $target->target_cups = $t['target_cups'];
+            $target->target_shifts = $t['target_shifts'] ?? $target->target_shifts ?? 0;
+            $target->save();
         }
 
         return back()->with('success', 'Target quartal berhasil disimpan.');
@@ -168,7 +170,7 @@ class QuarterlyTargetController extends Controller
     }
 
     /**
-     * @return Collection<int, array{id: int|null, quarter: int, start_month: int, target_cups: int}>
+     * @return Collection<int, array{id: int|null, quarter: int, start_month: int, target_cups: int, target_shifts: int}>
      */
     private function quarterRowsFor(int $brandId, int $year)
     {
@@ -186,32 +188,9 @@ class QuarterlyTargetController extends Controller
                 'quarter' => $q,
                 'start_month' => $row?->start_month ?? ($q - 1) * 3 + 1,
                 'target_cups' => (int) ($row->target_cups ?? 0),
+                'target_shifts' => (int) ($row->target_shifts ?? 0),
             ];
         })->values();
-    }
-
-    /**
-     * Sum of the latest verified report per event, grouped by brand,
-     * for events verified inside the given quarter bounds.
-     *
-     * @return array<int, int|string>
-     */
-    private function actualCupsByBrand(Carbon $start, Carbon $end): array
-    {
-        $latestVerifiedReportIds = EventReport::query()
-            ->selectRaw('MAX(id)')
-            ->where('status', ReportStatus::VERIFIED)
-            ->whereBetween('verified_at', [$start, $end])
-            ->groupBy('event_id');
-
-        return EventReport::query()
-            ->join('events', 'event_reports.event_id', '=', 'events.id')
-            ->whereNotNull('events.brand_id')
-            ->whereIn('event_reports.id', $latestVerifiedReportIds)
-            ->groupBy('events.brand_id')
-            ->selectRaw('events.brand_id, SUM(event_reports.actual_sampling) as actual')
-            ->pluck('actual', 'brand_id')
-            ->all();
     }
 
     /**

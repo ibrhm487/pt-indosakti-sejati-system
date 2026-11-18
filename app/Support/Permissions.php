@@ -27,7 +27,14 @@ class Permissions
                 'view' => 'Lihat FJP',
                 'create' => 'Buat FJP',
                 'update' => 'Ubah FJP',
+                'status.update' => 'Ubah status FJP',
+                'assign_team' => 'Tentukan tim FJP',
+                'assign_team_members' => 'Membagikan anggota tim FJP',
                 'delete' => 'Hapus FJP',
+            ],
+            'venues' => [
+                'view' => 'Lihat lokasi',
+                'approve' => 'Setujui lokasi',
             ],
             'permits' => [
                 'view' => 'Lihat perizinan',
@@ -73,6 +80,8 @@ class Permissions
                 'personnel.manage' => 'Kelola data personel',
                 'settings.manage' => 'Kelola pengaturan',
                 'audit.view' => 'Lihat audit log',
+                'system.view' => 'Lihat kesehatan sistem',
+                'logs.view' => 'Lihat log aplikasi',
             ],
         ];
 
@@ -93,5 +102,22 @@ class Permissions
     public static function slugs(): array
     {
         return array_keys(self::all());
+    }
+
+    /**
+     * @return array<string, array<int, array{slug: string, name: string}>>
+     */
+    public static function grouped(): array
+    {
+        $groups = [];
+
+        foreach (self::all() as $slug => $meta) {
+            $groups[$meta['module']][] = [
+                'slug' => $slug,
+                'name' => $meta['name'],
+            ];
+        }
+
+        return $groups;
     }
 }

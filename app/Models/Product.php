@@ -9,7 +9,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 #[Fillable([
-    'name', 'sku', 'brand_id', 'product_category_id', 'unit', 'minimum_stock', 'is_active',
+    'name', 'description', 'sku', 'package_sku', 'product_type', 'brand_id', 'product_category_id', 'unit',
+    'minimum_stock', 'units_per_case', 'default_lot_code', 'uses_jug_conversion', 'sachets_per_jug', 'is_active',
 ])]
 class Product extends Model
 {
@@ -18,6 +19,9 @@ class Product extends Model
         return [
             'is_active' => 'boolean',
             'minimum_stock' => 'integer',
+            'units_per_case' => 'integer',
+            'uses_jug_conversion' => 'boolean',
+            'sachets_per_jug' => 'integer',
         ];
     }
 
@@ -46,6 +50,11 @@ class Product extends Model
         return $this->hasMany(StockReceipt::class);
     }
 
+    public function receiptSlipItems(): HasMany
+    {
+        return $this->hasMany(StockReceiptSlipItem::class);
+    }
+
     public function requestItems(): HasMany
     {
         return $this->hasMany(StockRequestItem::class);
@@ -64,6 +73,7 @@ class Product extends Model
     {
         return $this->movements()->exists()
             || $this->receipts()->exists()
+            || $this->receiptSlipItems()->exists()
             || $this->requestItems()->exists()
             || $this->returnItems()->exists();
     }

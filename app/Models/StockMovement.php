@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 #[Fillable([
     'product_id', 'type', 'quantity', 'balance_after', 'reference_type',
-    'reference_id', 'notes', 'created_by',
+    'reference_id', 'notes', 'lot_code', 'expired_date', 'created_by',
 ])]
 class StockMovement extends Model
 {
@@ -20,6 +20,7 @@ class StockMovement extends Model
             'type' => StockMovementType::class,
             'quantity' => 'integer',
             'balance_after' => 'integer',
+            'expired_date' => 'date',
         ];
     }
 

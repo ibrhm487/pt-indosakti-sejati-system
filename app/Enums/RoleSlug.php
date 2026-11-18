@@ -4,6 +4,7 @@ namespace App\Enums;
 
 enum RoleSlug: string
 {
+    case DEVELOPER = 'developer';
     case SYSTEM_ADMIN = 'system_admin';
     case PERMITTER = 'permitter';
     case PIC = 'pic';
@@ -15,6 +16,7 @@ enum RoleSlug: string
     public function label(): string
     {
         return match ($this) {
+            self::DEVELOPER => 'Developer',
             self::SYSTEM_ADMIN => 'Admin Sistem',
             self::PERMITTER => 'Permitter',
             self::PIC => 'PIC',

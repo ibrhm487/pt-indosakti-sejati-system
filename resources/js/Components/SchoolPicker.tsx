@@ -20,6 +20,7 @@ export type DapoSchoolDetail = {
     provinsi: string | null;
     kabupaten: string | null;
     kecamatan: string | null;
+    kelurahan: string | null;
     address: string | null;
     jumlah_siswa: number | null;
     latitude: number | null;
@@ -30,9 +31,13 @@ export type DapoSchoolDetail = {
 export default function SchoolPicker({
     onPick,
     onError,
+    jakartaOnly = false,
+    jabodetabekOnly = false,
 }: {
     onPick: (detail: DapoSchoolDetail) => void;
     onError?: (message: string) => void;
+    jakartaOnly?: boolean;
+    jabodetabekOnly?: boolean;
 }) {
     const [query, setQuery] = useState('');
     const [results, setResults] = useState<SchoolResult[]>([]);
@@ -45,8 +50,13 @@ export default function SchoolPicker({
     useEffect(() => {
         const q = query.trim();
         const controller = new AbortController();
+        const areaParam = jabodetabekOnly
+            ? '&jabodetabek=true'
+            : jakartaOnly
+              ? '&jakarta=true'
+              : '';
         setError(null);
-        if (q.length < 5) {
+        if (q.length < 3) {
             setResults([]);
             setOpen(false);
             setLoading(false);
@@ -57,7 +67,7 @@ export default function SchoolPicker({
             setLoading(true);
             try {
                 const res = await fetch(
-                    `${route('dapodik.search')}?q=${encodeURIComponent(q)}&limit=100`,
+                    `${route('dapodik.search')}?q=${encodeURIComponent(q)}&limit=50${areaParam}`,
                     {
                         headers: { Accept: 'application/json' },
                         signal: controller.signal,
@@ -87,13 +97,13 @@ export default function SchoolPicker({
             } finally {
                 if (!controller.signal.aborted) setLoading(false);
             }
-        }, 300);
+        }, 180);
 
         return () => {
             clearTimeout(id);
             controller.abort();
         };
-    }, [query]);
+    }, [query, jakartaOnly, jabodetabekOnly]);
 
     useEffect(() => {
         const handler = (e: MouseEvent) => {

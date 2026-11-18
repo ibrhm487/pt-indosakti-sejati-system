@@ -14,6 +14,11 @@ class RoleDefinitions
     public static function all(): array
     {
         return [
+            RoleSlug::DEVELOPER->value => [
+                'name' => RoleSlug::DEVELOPER->label(),
+                'description' => 'Developer: akses teknis penuh untuk seluruh modul dan administrasi.',
+                'permissions' => '*',
+            ],
             RoleSlug::SYSTEM_ADMIN->value => [
                 'name' => RoleSlug::SYSTEM_ADMIN->label(),
                 'description' => 'Administrator sistem: pengguna, master data, audit.',
@@ -21,19 +26,21 @@ class RoleDefinitions
             ],
             RoleSlug::PERMITTER->value => [
                 'name' => RoleSlug::PERMITTER->label(),
-                'description' => 'Membuat & mengelola FJP dan perizinan.',
+                'description' => 'Mengelola FJP, menentukan tim, dan mengubah status FJP.',
                 'permissions' => [
                     'dashboard.view', 'fjp.view', 'fjp.create', 'fjp.update', 'fjp.delete',
-                    'permits.view', 'permits.create', 'permits.update',
-                    'events.view', 'targets.manage',
+                    'fjp.status.update', 'fjp.assign_team',
+                    'events.view', 'targets.manage', 'venues.view', 'warehouse.request',
                 ],
             ],
             RoleSlug::PIC->value => [
                 'name' => RoleSlug::PIC->label(),
-                'description' => 'Koordinator event, penugasan tim, kesiapan operasional.',
+                'description' => 'Koordinator FJP, penugasan tim, dan kesiapan operasional.',
                 'permissions' => [
                     'dashboard.view', 'events.view', 'events.create', 'events.update',
-                    'events.assign_team', 'fjp.view', 'permits.view',
+                    'events.delete', 'events.assign_team', 'fjp.view', 'fjp.status.update',
+                    'fjp.create', 'fjp.update', 'fjp.assign_team_members',
+                    'venues.view', 'venues.approve',
                     'warehouse.view', 'warehouse.request', 'kitchen.view',
                     'reports.view', 'reports.create', 'quick_reports.view',
                     'attendance.view', 'attendance.create', 'attendance.manage', 'attendance.payroll',
@@ -68,8 +75,9 @@ class RoleDefinitions
                 'description' => 'Verifikasi laporan & penutupan event (bukan super admin).',
                 'permissions' => [
                     'dashboard.view', 'events.view', 'events.close',
+                    'fjp.view',
                     'reports.view', 'reports.verify', 'reports.revision',
-                    'quick_reports.view', 'attendance.view',
+                    'quick_reports.view', 'attendance.view', 'attendance.payroll',
                 ],
             ],
         ];

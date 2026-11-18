@@ -1,8 +1,10 @@
 import { PageHeader } from '@/Components/AppBits';
 import EventForm, {
+    ConfirmedFjpOption,
     EventFormData,
     EventOption,
     EventTypeOption,
+    VenueOption,
 } from '@/Components/EventForm';
 import { Button, Card } from '@/Components/ui';
 import AppLayout from '@/Layouts/AppLayout';
@@ -14,16 +16,19 @@ export default function EventsEdit({
     brands,
     eventTypes,
     venues,
+    confirmedFjps,
     pics,
 }: {
     event: any;
     brands: EventOption[];
     eventTypes: EventTypeOption[];
-    venues: EventOption[];
+    venues: VenueOption[];
+    confirmedFjps: ConfirmedFjpOption[];
     pics: EventOption[];
 }) {
     const form = useForm<EventFormData>({
         event_name: event.event_name ?? '',
+        fjp_id: event.fjp_id != null ? String(event.fjp_id) : '',
         brand_id: event.brand_id != null ? String(event.brand_id) : '',
         event_type_id: event.event_type_id != null ? String(event.event_type_id) : '',
         venue_id: event.venue_id != null ? String(event.venue_id) : '',
@@ -65,6 +70,8 @@ export default function EventsEdit({
                         brands={brands}
                         eventTypes={eventTypes}
                         venues={venues}
+                        confirmedFjps={confirmedFjps}
+                        currentVenue={event.venue}
                         pics={pics}
                     />
                 </Card>

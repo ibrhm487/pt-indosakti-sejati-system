@@ -1,8 +1,8 @@
 import { CardTable, EmptyState, FilterCard, PageHeader, SearchInput } from '@/Components/AppBits';
-import { Button, Field, Input, Modal, StatCard, StatusBadge, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
+import { Button, Field, Input, Modal, Select, StatCard, StatusBadge, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
 import AppLayout from '@/Layouts/AppLayout';
 import { formatNumber } from '@/lib/utils';
-import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { PackageSearch, PackageX, Truck } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 
@@ -20,6 +20,14 @@ type InventoryRow = {
     available: number;
     minimum_stock: number;
     status: string;
+    lots: { lot_code: string; quantity: number; expired_date: string | null }[];
+};
+
+type AdjustmentFormData = {
+    product_id: number | null;
+    lot_code: string;
+    actual_quantity: string;
+    reason: string;
 };
 
 export default function InventoryIndex({
@@ -38,8 +46,12 @@ export default function InventoryIndex({
 }) {
     const [search, setSearch] = useState(filters.search ?? '');
     const [target, setTarget] = useState<InventoryRow | null>(null);
-    const [delta, setDelta] = useState('');
-    const [reason, setReason] = useState('');
+    const adjustmentForm = useForm<AdjustmentFormData>({
+        product_id: null,
+        lot_code: '',
+        actual_quantity: '',
+        reason: '',
+    });
     const permissions = usePage().props.auth.permissions;
     const canManage = permissions.includes('warehouse.manage');
 
@@ -50,24 +62,26 @@ export default function InventoryIndex({
 
     const openAdjust = (row: InventoryRow) => {
         setTarget(row);
-        setDelta('');
-        setReason('');
+        const firstLot = row.lots[0];
+        adjustmentForm.setData({
+            product_id: row.id,
+            lot_code: firstLot?.lot_code ?? '',
+            actual_quantity: firstLot ? String(firstLot.quantity) : '',
+            reason: '',
+        });
+        adjustmentForm.clearErrors();
     };
 
     const submitAdjust = (e: FormEvent) => {
         e.preventDefault();
         if (!target) return;
-        router.post(
-            route('warehouse.inventory.adjust'),
-            { product_id: target.id, delta, reason },
-            {
-                preserveScroll: true,
-                onSuccess: () => {
-                    setTarget(null);
-                },
-            },
-        );
+        adjustmentForm.post(route('warehouse.inventory.adjust'), {
+            preserveScroll: true,
+            onSuccess: () => setTarget(null),
+        });
     };
+
+    const selectedLot = target?.lots.find((lot) => lot.lot_code === adjustmentForm.data.lot_code);
 
     return (
         <AppLayout title="Kontrol Stok & MRV">
@@ -140,7 +154,7 @@ export default function InventoryIndex({
                                     <TH className="text-right">Reserved</TH>
                                     <TH className="text-right">Tersedia</TH>
                                     <TH>Status</TH>
-                                    {canManage && <TH className="text-right">Aksi</TH>}
+                                    <TH className="text-right">Aksi</TH>
                                 </TR>
                             </THead>
                             <TBody>
@@ -174,13 +188,20 @@ export default function InventoryIndex({
                                                 }
                                             />
                                         </TD>
-                                        {canManage && (
-                                            <TD className="text-right">
-                                                <Button variant="outline" size="sm" onClick={() => openAdjust(p)}>
-                                                    Sesuaikan
-                                                </Button>
-                                            </TD>
-                                        )}
+                                        <TD className="text-right">
+                                            <div className="flex justify-end gap-2">
+                                                <Link href={route('warehouse.inventory.stock-card', p.id)}>
+                                                    <Button variant="outline" size="sm">
+                                                        Stock Card
+                                                    </Button>
+                                                </Link>
+                                                {canManage && (
+                                                    <Button variant="outline" size="sm" onClick={() => openAdjust(p)}>
+                                                        Sesuaikan
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        </TD>
                                     </TR>
                                 ))}
                             </TBody>
@@ -198,23 +219,67 @@ export default function InventoryIndex({
                         <Button type="button" variant="outline" size="sm" onClick={() => setTarget(null)}>
                             Batal
                         </Button>
-                        <Button type="button" variant="primary" size="sm" onClick={submitAdjust}>
-                            Simpan
+                        <Button
+                            type="submit"
+                            form="inventory-adjust-form"
+                            variant="primary"
+                            size="sm"
+                            disabled={adjustmentForm.processing || !target?.lots.length}
+                        >
+                            {adjustmentForm.processing ? 'Menyimpan…' : 'Simpan penyesuaian'}
                         </Button>
                     </>
                 }
             >
-                <form onSubmit={submitAdjust}>
-                    <Field label="Perubahan (delta)">
+                <form id="inventory-adjust-form" onSubmit={submitAdjust} className="space-y-3">
+                    {target?.lots.length ? (
+                        <>
+                            <Field label="Lot Code" error={adjustmentForm.errors.lot_code}>
+                                <Select
+                                    value={adjustmentForm.data.lot_code}
+                                    onChange={(event) => {
+                                        const lot = target.lots.find((item) => item.lot_code === event.target.value);
+                                        adjustmentForm.setData({
+                                            ...adjustmentForm.data,
+                                            lot_code: event.target.value,
+                                            actual_quantity: lot ? String(lot.quantity) : '',
+                                        });
+                                    }}
+                                >
+                                    {target.lots.map((lot) => (
+                                        <option key={lot.lot_code} value={lot.lot_code}>
+                                            {lot.lot_code} · saldo {formatNumber(lot.quantity)}
+                                            {lot.expired_date ? ` · ED ${lot.expired_date}` : ''}
+                                        </option>
+                                    ))}
+                                </Select>
+                            </Field>
+                            <p className="text-xs text-muted">
+                                Saldo lot saat ini: {formatNumber(selectedLot?.quantity ?? 0)} {target.unit}.
+                                Penyesuaian akan memperbarui saldo produk dan tetap tercatat pada lot ini.
+                            </p>
+                            <Field label={`Saldo fisik aktual (${target.unit})`} error={adjustmentForm.errors.actual_quantity}>
+                                <Input
+                                    type="number"
+                                    min="0"
+                                    step="1"
+                                    value={adjustmentForm.data.actual_quantity}
+                                    onChange={(event) => adjustmentForm.setData('actual_quantity', event.target.value)}
+                                    required
+                                />
+                            </Field>
+                        </>
+                    ) : (
+                        <p className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-text">
+                            Produk ini belum memiliki lot pada riwayat stok. Catat penerimaan melalui MRS terlebih dahulu sebelum melakukan penyesuaian.
+                        </p>
+                    )}
+                    <Field label="Alasan" error={adjustmentForm.errors.reason}>
                         <Input
-                            type="number"
-                            placeholder="cth: 10 atau -5"
-                            value={delta}
-                            onChange={(e) => setDelta(e.target.value)}
+                            value={adjustmentForm.data.reason}
+                            onChange={(event) => adjustmentForm.setData('reason', event.target.value)}
+                            required
                         />
-                    </Field>
-                    <Field label="Alasan">
-                        <Input value={reason} onChange={(e) => setReason(e.target.value)} />
                     </Field>
                 </form>
             </Modal>

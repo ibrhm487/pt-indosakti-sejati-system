@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\EventStatus;
+use App\Enums\MrvStatus;
 use App\Enums\ReportStatus;
 use App\Models\Attendance;
 use App\Models\AuditLog;
@@ -11,6 +12,7 @@ use App\Models\Event;
 use App\Models\EventReport;
 use App\Models\EventTeamMember;
 use App\Models\Personnel;
+use App\Models\StockRequest;
 use App\Models\User;
 use App\Models\Venue;
 use Database\Seeders\DemoDataSeeder;
@@ -29,6 +31,37 @@ class AttendancePayrollTest extends TestCase
 
         $this->seed(RolePermissionSeeder::class);
         $this->seed(DemoDataSeeder::class);
+    }
+
+    public function test_team_attendance_form_preselects_only_the_event_assigned_by_the_pic(): void
+    {
+        $team = User::where('email', 'team@indosakti.com')->firstOrFail();
+        $pic = User::where('email', 'pic@indosakti.com')->firstOrFail();
+        $assignedEvent = Event::create([
+            'event_code' => 'EVT-ATTENDANCE-ASSIGNED-'.uniqid(),
+            'event_name' => 'Event Absensi Ditugaskan',
+            'status' => EventStatus::READY,
+            'pic_id' => $pic->id,
+        ]);
+        $unassignedEvent = Event::create([
+            'event_code' => 'EVT-ATTENDANCE-UNASSIGNED-'.uniqid(),
+            'event_name' => 'Event Absensi Bukan Tugas',
+            'status' => EventStatus::READY,
+            'pic_id' => $pic->id,
+        ]);
+        EventTeamMember::create(['event_id' => $assignedEvent->id, 'user_id' => $team->id]);
+
+        $response = $this->actingAs($team)
+            ->get(route('attendance.index', ['event_id' => $assignedEvent->id]));
+
+        $response->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Attendance/Index')
+                ->where('initialEventId', $assignedEvent->id));
+
+        $eventIds = collect($response->inertiaProps('events'))->pluck('id');
+        $this->assertTrue($eventIds->contains($assignedEvent->id));
+        $this->assertFalse($eventIds->contains($unassignedEvent->id));
     }
 
     public function test_pic_cannot_assign_a_duplicate_team_member(): void
@@ -112,6 +145,14 @@ class AttendancePayrollTest extends TestCase
             'user_id' => $team->id,
             'status' => 'planned',
         ]);
+        $attendance->media()->create([
+            'type' => 'photo',
+            'stage' => 'pre_departure',
+            'path' => 'attendance/'.$attendance->id.'/pre-departure/before-departure.jpg',
+            'mime' => 'image/jpeg',
+            'size' => 100,
+            'original_name' => 'before-departure.jpg',
+        ]);
 
         $this->actingAs($team)
             ->from(route('attendance.index'))
@@ -136,6 +177,14 @@ class AttendancePayrollTest extends TestCase
             'event_id' => $event->id,
             'user_id' => $team->id,
             'status' => 'planned',
+        ]);
+        $attendance->media()->create([
+            'type' => 'photo',
+            'stage' => 'pre_departure',
+            'path' => 'attendance/'.$attendance->id.'/pre-departure/before-departure.jpg',
+            'mime' => 'image/jpeg',
+            'size' => 100,
+            'original_name' => 'before-departure.jpg',
         ]);
 
         $this->actingAs($team)
@@ -180,8 +229,7 @@ class AttendancePayrollTest extends TestCase
                 ->component('Attendance/Payroll')
                 ->where('summary.eligible_shifts', 0)
                 ->where('summary.incomplete', 1)
-                ->where('rows.0.qualifies', false)
-                ->where('rows.0.duration_minutes', 0));
+                ->has('rows', 0));
     }
 
     public function test_team_member_cannot_correct_attendance(): void
@@ -293,6 +341,32 @@ class AttendancePayrollTest extends TestCase
     public function test_payroll_summary_breaks_down_by_user(): void
     {
         $admin = User::where('email', 'admin@indosakti.com')->firstOrFail();
+        $teamMember = User::where('email', 'team@indosakti.com')->firstOrFail();
+        $event = Event::create([
+            'event_code' => 'EVT-PAYROLL-LEGACY-'.uniqid(),
+            'event_name' => 'Sekolah tanpa roster tersimpan',
+            'event_date' => '2030-07-12',
+        ]);
+        $otherEvent = Event::create([
+            'event_code' => 'EVT-PAYROLL-'.uniqid(),
+            'event_name' => 'Sekolah Kedua untuk Shift',
+            'event_date' => '2030-07-12',
+        ]);
+
+        foreach ([
+            ['activity_date' => '2030-07-12', 'issued_at' => '2030-07-12 08:00:00', 'event_id' => $event->id],
+            ['activity_date' => '2030-07-12', 'issued_at' => '2030-07-12 08:30:00', 'event_id' => $otherEvent->id],
+            ['activity_date' => '2030-07-13', 'issued_at' => '2030-07-13 08:00:00', 'event_id' => $event->id],
+        ] as $requestData) {
+            StockRequest::create([
+                'mrv_number' => StockRequest::generateNumber(),
+                'event_id' => $requestData['event_id'],
+                'team_member_id' => $teamMember->id,
+                'activity_date' => $requestData['activity_date'],
+                'status' => MrvStatus::ISSUED,
+                'issued_at' => $requestData['issued_at'],
+            ]);
+        }
 
         $this->actingAs($admin)
             ->get(route('attendance.payroll'))
@@ -300,11 +374,63 @@ class AttendancePayrollTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Attendance/Payroll')
                 ->has('summary.by_user')
+                ->has('summary.by_event')
                 ->where('summary.by_user.0.user', 'Tim Lapangan')
                 ->where('summary.by_user.0.eligible_shifts', 2)
                 ->where('summary.by_user.0.total', 2 * 125000)
-                ->has('rows.0.event')
-                ->has('rows.0.duration_minutes'));
+                ->has('rows', 3)
+                ->where('rows.0.qualifies', true)
+                ->where('rows.1.qualifies', false)
+                ->where('rows.2.qualifies', true));
+    }
+
+    public function test_issued_mrv_credits_each_assigned_team_member_once_per_day(): void
+    {
+        $admin = User::where('email', 'admin@indosakti.com')->firstOrFail();
+        $teamLeader = User::where('email', 'tl@indosakti.com')->firstOrFail();
+        $spg = User::where('email', 'spg@indosakti.com')->firstOrFail();
+        $event = Event::create([
+            'event_code' => 'EVT-PAYROLL-TEAM-'.uniqid(),
+            'event_name' => 'Sampling sekolah dengan dua anggota',
+            'event_date' => '2030-07-12',
+        ]);
+
+        foreach ([$teamLeader, $spg] as $member) {
+            EventTeamMember::create([
+                'event_id' => $event->id,
+                'user_id' => $member->id,
+                'position' => 'Sampler',
+                'status' => 'assigned',
+            ]);
+        }
+
+        foreach ([$teamLeader, $spg] as $index => $selectedMember) {
+            StockRequest::create([
+                'mrv_number' => 'PAYROLL-TEAM-'.$index.'-'.uniqid(),
+                'event_id' => $event->id,
+                'team_member_id' => $selectedMember->id,
+                'activity_date' => '2030-07-12',
+                'status' => MrvStatus::ISSUED,
+                'issued_at' => '2030-07-12 08:00:00',
+            ]);
+        }
+
+        $response = $this->actingAs($admin)->get(route('attendance.payroll'));
+
+        $response->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Attendance/Payroll')
+                ->where('summary.eligible_shifts', 2)
+                ->has('summary.by_user', 2)
+                ->has('rows', 4));
+
+        $summary = $response->inertiaProps('summary');
+        $rows = $response->inertiaProps('rows');
+        $actualMembers = collect($summary['by_user'])->pluck('user')->sort()->values()->all();
+        $expectedMembers = collect([$teamLeader->name, $spg->name])->sort()->values()->all();
+
+        $this->assertSame($expectedMembers, $actualMembers);
+        $this->assertSame([true, true, false, false], collect($rows)->pluck('qualifies')->all());
     }
 
     public function test_events_index_filters_by_brand(): void
@@ -312,16 +438,20 @@ class AttendancePayrollTest extends TestCase
         $admin = User::where('email', 'admin@indosakti.com')->firstOrFail();
         $milo = Brand::where('slug', 'milo')->firstOrFail();
         $venue = Venue::where('name', 'SDN 01 Menteng')->firstOrFail();
+        $miloEvent = Event::where('brand_id', $milo->id)->firstOrFail();
 
         $this->actingAs($admin)
-            ->get(route('events.index', ['brand_id' => $milo->id]))
+            ->get(route('events.index', [
+                'brand_id' => $milo->id,
+                'month' => $miloEvent->event_date->format('Y-m'),
+            ]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Events/Index')
                 ->where('filters.brand_id', (string) $milo->id)
-                ->has('events.data', 1)
+                ->has('events.data', 2)
                 ->where('events.data.0.brand', $milo->name)
-                ->has('calendarEvents', 1));
+                ->has('calendarEvents', 2));
 
         $this->actingAs($admin)
             ->get(route('events.index', ['venue_id' => $venue->id]))

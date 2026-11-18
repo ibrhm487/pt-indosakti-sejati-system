@@ -47,21 +47,12 @@ import { FormEvent, ReactNode, useMemo, useState } from 'react';
 
 type TabItem = { key: string; label: string; icon: ReactNode; count?: number };
 
-const MODULE_LABELS: Record<string, string> = {
-    permission: 'Perizinan',
-    team: 'Tim',
-    warehouse: 'Gudang',
-    kitchen: 'Kitchen',
-};
-
 const MODULE_VARIANTS: Record<
     string,
     'success' | 'warning' | 'danger' | 'outline'
 > = {
     READY: 'success',
     PENDING: 'warning',
-    BLOCKED: 'danger',
-    NOT_REQUIRED: 'outline',
 };
 
 type Option = { value: string; label: string };
@@ -81,6 +72,7 @@ export default function EventsShow({
     documents,
     auditTrail,
     transitions,
+    fjpStatusOptions,
     assignmentPool,
     can,
 }: {
@@ -101,7 +93,7 @@ export default function EventsShow({
         status_label: string;
         pic: string | null;
     };
-    readiness: { modules: Record<string, string>; percentage: number };
+    readiness: { modules: { team: string } };
     summary: { target: number | null; realisasi: number | null; achievement: number | null; has_data: boolean };
     fjp: any | null;
     permit: any | null;
@@ -150,6 +142,7 @@ export default function EventsShow({
         created_at: string | null;
     }[];
     transitions: Option[];
+    fjpStatusOptions: Option[];
     assignmentPool: {
         users: { id: number; name: string }[];
         personnel: { id: number; name: string; role: string }[];
@@ -157,6 +150,7 @@ export default function EventsShow({
     can: {
         assign_team: boolean;
         manage: boolean;
+        update_fjp_status: boolean;
         close: boolean;
         verify: boolean;
         revision: boolean;
@@ -170,16 +164,34 @@ export default function EventsShow({
     };
 }) {
     const { errors } = usePage().props as any;
-    const [tab, setTab] = useState('ringkasan');
+    const [tab, setTab] = useState(
+        () => new URLSearchParams(window.location.search).get('tab') ?? 'ringkasan',
+    );
     const [statusOpen, setStatusOpen] = useState(false);
     const [statusValue, setStatusValue] = useState(event.status);
     const [assignOpen, setAssignOpen] = useState(false);
+    const [editMember, setEditMember] = useState<any | null>(null);
 
-    const assignForm = useForm<{
-        user_id: string;
-        personnel_id: string;
-        position: string;
-    }>({ user_id: '', personnel_id: '', position: '' });
+    const emptySchedule = {
+        position: '',
+        schedule_date: '',
+        report_time: '',
+        start_time: '',
+        end_time: '',
+        task: '',
+        schedule_notes: '',
+    };
+
+    const assignForm = useForm({
+        user_id: '',
+        personnel_id: '',
+        ...emptySchedule,
+        schedule_date: event.event_date ?? '',
+        start_time: event.start_time ?? '',
+        end_time: event.end_time ?? '',
+    });
+
+    const editForm = useForm({ ...emptySchedule });
 
     const tabs = useMemo(() => {
         const items: TabItem[] = [
@@ -254,7 +266,9 @@ export default function EventsShow({
     const submitStatus = (e: FormEvent) => {
         e.preventDefault();
         router.patch(
-            route('events.status', event.id),
+            fjp && can.update_fjp_status
+                ? route('fjp.status', fjp.id)
+                : route('events.status', event.id),
             { status: statusValue },
             { preserveScroll: true, onSuccess: () => setStatusOpen(false) },
         );
@@ -283,6 +297,33 @@ export default function EventsShow({
         });
     };
 
+    const openEditMember = (member: any) => {
+        editForm.clearErrors();
+        editForm.setData({
+            position: member.position ?? '',
+            schedule_date: member.schedule_date ?? '',
+            report_time: member.report_time ?? '',
+            start_time: member.start_time ?? '',
+            end_time: member.end_time ?? '',
+            task: member.task ?? '',
+            schedule_notes: member.schedule_notes ?? '',
+        });
+        setEditMember(member);
+    };
+
+    const submitEditMember = (e: FormEvent) => {
+        e.preventDefault();
+        if (!editMember) return;
+
+        editForm.patch(route('events.team.update', [event.id, editMember.id]), {
+            preserveScroll: true,
+            onSuccess: () => {
+                setEditMember(null);
+                editForm.reset();
+            },
+        });
+    };
+
     const closeEvent = () => {
         router.post(route('events.close', event.id), {}, { preserveScroll: true });
     };
@@ -303,15 +344,27 @@ export default function EventsShow({
                                 <Pencil className="h-4 w-4" /> Ubah
                             </Button>
                         </Link>
-                        <Button
-                            variant="outline"
-                            onClick={() => {
-                                setStatusValue(event.status);
-                                setStatusOpen(true);
-                            }}
-                        >
-                            <Activity className="h-4 w-4" /> Ubah Status
-                        </Button>
+                        {fjp && can.update_fjp_status ? (
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    setStatusValue(fjp.status);
+                                    setStatusOpen(true);
+                                }}
+                            >
+                                <Activity className="h-4 w-4" /> Ubah Status FJP
+                            </Button>
+                        ) : !fjp ? (
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    setStatusValue(event.status);
+                                    setStatusOpen(true);
+                                }}
+                            >
+                                <Activity className="h-4 w-4" /> Ubah Status Event
+                            </Button>
+                        ) : null}
                     </>
                 )}
                 {can.close && !isTerminal && (
@@ -350,6 +403,7 @@ export default function EventsShow({
                     can={can}
                     onAssign={openAssign}
                     onRemove={removeMember}
+                    onEdit={openEditMember}
                 />
             )}
 
@@ -374,19 +428,28 @@ export default function EventsShow({
             <ModalForm
                 open={statusOpen}
                 onClose={() => setStatusOpen(false)}
-                title="Ubah Status Event"
-                description="Hanya transisi status yang sah yang dapat dipilih."
+                title={fjp && can.update_fjp_status ? 'Ubah Status FJP' : 'Ubah Status Event'}
+                description={fjp && can.update_fjp_status
+                    ? 'Status Event akan mengikuti status FJP; Done hanya berubah otomatis setelah Quick Report selesai.'
+                    : 'Hanya transisi status yang sah yang dapat dipilih.'}
                 size="sm"
                 onSubmit={submitStatus}
-                submitDisabled={statusValue === event.status}
+                submitDisabled={statusValue === (fjp && can.update_fjp_status ? fjp.status : event.status)}
             >
                 <Field label="Status" error={errors?.status}>
                     <Select
                         value={statusValue}
                         onChange={(e) => setStatusValue(e.target.value)}
                     >
-                        <option value={event.status}>{event.status_label}</option>
-                        {transitions.map((s) => (
+                        <option
+                            value={fjp && can.update_fjp_status ? fjp.status : event.status}
+                        >
+                            {fjp && can.update_fjp_status ? fjp.status_label : event.status_label}
+                        </option>
+                        {(fjp && can.update_fjp_status
+                            ? fjpStatusOptions.filter((option) => option.value !== 'done')
+                            : transitions
+                        ).map((s) => (
                             <option key={s.value} value={s.value}>
                                 {s.label}
                             </option>
@@ -434,11 +497,84 @@ export default function EventsShow({
                     <Input
                         value={assignForm.data.position}
                         onChange={(e) => assignForm.setData('position', e.target.value)}
-                        placeholder="Mis. Sampler"
+                        placeholder="Mis. Team Leader / SPG"
                     />
                 </Field>
+                <ScheduleFields form={assignForm} />
+            </ModalForm>
+
+            <ModalForm
+                open={editMember !== null}
+                onClose={() => setEditMember(null)}
+                title="Ubah Jadwal Tim"
+                description={editMember ? `Atur jadwal untuk ${editMember.name}.` : ''}
+                onSubmit={submitEditMember}
+                submitLabel="Simpan Jadwal"
+                submitDisabled={editForm.processing}
+            >
+                <Field label="Posisi" error={editForm.errors.position}>
+                    <Input
+                        value={editForm.data.position}
+                        onChange={(e) => editForm.setData('position', e.target.value)}
+                        placeholder="Mis. Team Leader / SPG"
+                    />
+                </Field>
+                <ScheduleFields form={editForm} />
             </ModalForm>
         </AppLayout>
+    );
+}
+
+function ScheduleFields({ form }: { form: any }) {
+    return (
+        <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Tanggal Jadwal" error={form.errors.schedule_date}>
+                <Input
+                    type="date"
+                    value={form.data.schedule_date}
+                    onChange={(e) => form.setData('schedule_date', e.target.value)}
+                />
+            </Field>
+            <Field label="Jam Kumpul" error={form.errors.report_time}>
+                <Input
+                    type="time"
+                    value={form.data.report_time}
+                    onChange={(e) => form.setData('report_time', e.target.value)}
+                />
+            </Field>
+            <Field label="Jam Mulai" error={form.errors.start_time}>
+                <Input
+                    type="time"
+                    value={form.data.start_time}
+                    onChange={(e) => form.setData('start_time', e.target.value)}
+                />
+            </Field>
+            <Field label="Jam Selesai" error={form.errors.end_time}>
+                <Input
+                    type="time"
+                    value={form.data.end_time}
+                    onChange={(e) => form.setData('end_time', e.target.value)}
+                />
+            </Field>
+            <Field label="Tugas" error={form.errors.task} className="sm:col-span-2">
+                <Input
+                    value={form.data.task}
+                    onChange={(e) => form.setData('task', e.target.value)}
+                    placeholder="Mis. Sampling dan edukasi produk"
+                />
+            </Field>
+            <Field
+                label="Catatan Jadwal"
+                error={form.errors.schedule_notes}
+                className="sm:col-span-2"
+            >
+                <Input
+                    value={form.data.schedule_notes}
+                    onChange={(e) => form.setData('schedule_notes', e.target.value)}
+                    placeholder="Instruksi tambahan untuk anggota tim"
+                />
+            </Field>
+        </div>
     );
 }
 
@@ -448,7 +584,7 @@ function RingkasanTab({
     summary,
 }: {
     event: any;
-    readiness: { modules: Record<string, string>; percentage: number };
+    readiness: { modules: { team: string } };
     summary: { target: number | null; realisasi: number | null; achievement: number | null; has_data: boolean };
 }) {
     return (
@@ -456,7 +592,10 @@ function RingkasanTab({
             <Card className="lg:col-span-2">
                 <CardHeader className="flex items-center justify-between">
                     <CardTitle>Detail Event</CardTitle>
-                    <StatusBadge status={event.status} label={event.status_label} />
+                    <StatusBadge
+                        status={event.display_status ?? event.status}
+                        label={event.display_status_label ?? event.status_label}
+                    />
                 </CardHeader>
                 <CardContent>
                     <dl className="grid grid-cols-2 gap-4 text-sm">
@@ -478,25 +617,14 @@ function RingkasanTab({
             <Card>
                 <CardHeader className="flex items-center justify-between">
                     <CardTitle>Kesiapan Event</CardTitle>
-                    <span className="text-sm font-semibold text-text">
-                        {readiness.percentage}%
-                    </span>
                 </CardHeader>
-                <CardContent className="space-y-4 text-sm">
-                    <div className="h-2 w-full overflow-hidden rounded-full bg-page">
-                        <div
-                            className="h-full rounded-full bg-success/100 transition-all"
-                            style={{ width: `${readiness.percentage}%` }}
-                        />
+                <CardContent className="text-sm">
+                    <div className="flex items-center justify-between">
+                        <span className="text-muted">Tim</span>
+                        <Badge variant={MODULE_VARIANTS[readiness.modules.team] ?? 'default'}>
+                            {readiness.modules.team.toLowerCase()}
+                        </Badge>
                     </div>
-                    {Object.entries(readiness.modules).map(([key, value]) => (
-                        <div key={key} className="flex items-center justify-between">
-                            <span className="text-muted">{MODULE_LABELS[key] ?? key}</span>
-                            <Badge variant={MODULE_VARIANTS[value] ?? 'default'}>
-                                {value.toLowerCase()}
-                            </Badge>
-                        </div>
-                    ))}
                 </CardContent>
             </Card>
 
@@ -666,12 +794,14 @@ function TimTab({
     can,
     onAssign,
     onRemove,
+    onEdit,
 }: {
     team: any[];
     attendances: any[];
     can: { assign_team: boolean };
     onAssign: () => void;
     onRemove: (id: number) => void;
+    onEdit: (member: any) => void;
 }) {
     return (
         <div className="space-y-6">
@@ -696,8 +826,10 @@ function TimTab({
                                 <TR>
                                     <TH>Nama</TH>
                                     <TH>Posisi</TH>
+                                    <TH>Jadwal</TH>
+                                    <TH>Tugas & Catatan</TH>
                                     <TH>Kehadiran</TH>
-                                    <TH className="w-16 text-right">Aksi</TH>
+                                    <TH className="w-24 text-right">Aksi</TH>
                                 </TR>
                             </THead>
                             <TBody>
@@ -706,6 +838,38 @@ function TimTab({
                                         <TD>{m.name}</TD>
                                         <TD>
                                             <Badge variant="outline">{m.position ?? '-'}</Badge>
+                                        </TD>
+                                        <TD>
+                                            <div className="space-y-0.5 text-xs">
+                                                <p className="text-text">
+                                                    {m.schedule_date
+                                                        ? formatDate(m.schedule_date)
+                                                        : 'Belum diatur'}
+                                                </p>
+                                                {(m.report_time ||
+                                                    m.start_time ||
+                                                    m.end_time) && (
+                                                    <p className="text-muted">
+                                                        {m.report_time
+                                                            ? `Kumpul ${m.report_time} · `
+                                                            : ''}
+                                                        {m.start_time ?? '--:--'} -{' '}
+                                                        {m.end_time ?? '--:--'}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </TD>
+                                        <TD>
+                                            <div className="space-y-0.5 text-xs">
+                                                <p className="text-text">
+                                                    {m.task ?? '-'}
+                                                </p>
+                                                {m.schedule_notes && (
+                                                    <p className="text-muted">
+                                                        {m.schedule_notes}
+                                                    </p>
+                                                )}
+                                            </div>
                                         </TD>
                                         <TD>
                                             {m.attendance ? (
@@ -727,7 +891,15 @@ function TimTab({
                                         </TD>
                                         <TD className="text-right">
                                             {can.assign_team && (
-                                                <div className="flex justify-end">
+                                                <div className="flex justify-end gap-1">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        title="Ubah jadwal"
+                                                        onClick={() => onEdit(m)}
+                                                    >
+                                                        <Pencil className="h-4 w-4" />
+                                                    </Button>
                                                     <ConfirmButton
                                                         variant="ghost"
                                                         size="icon"
@@ -940,39 +1112,28 @@ function KitchenTab({ kitchen }: { kitchen: any | null }) {
                         <Table>
                             <THead>
                                 <TR>
-                                    <TH>Jumlah Disiapkan</TH>
-                                    <TH>Kondisi</TH>
-                                    <TH>Catatan</TH>
+                                    <TH>Cuci JUG</TH>
+                                    <TH>Masak Susu</TH>
+                                    <TH>JUG Siap</TH>
                                     <TH>Oleh</TH>
-                                    <TH>Waktu</TH>
-                                    <TH>Foto</TH>
+                                    <TH>Catatan</TH>
                                 </TR>
                             </THead>
                             <TBody>
                                 {kitchen.reports.map((rep: any) => (
                                     <TR key={rep.id}>
-                                        <TD>{formatNumber(rep.prepared_quantity)}</TD>
-                                        <TD>{rep.condition ?? '-'}</TD>
-                                        <TD className="max-w-xs truncate text-muted">
-                                            {rep.notes ?? '-'}
-                                        </TD>
-                                        <TD>{rep.prepared_by ?? '-'}</TD>
-                                        <TD className="text-xs text-muted">
-                                            {formatDateTime(rep.prepared_at)}
+                                        <TD>
+                                            <KitchenStageCell time={rep.washing_at} media={rep.media?.washing} />
                                         </TD>
                                         <TD>
-                                            {rep.photo_url ? (
-                                                <a
-                                                    href={rep.photo_url}
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                    className="text-xs font-medium text-primary hover:underline"
-                                                >
-                                                    Lihat
-                                                </a>
-                                            ) : (
-                                                <span className="text-muted">-</span>
-                                            )}
+                                            <KitchenStageCell time={rep.cooking_at} media={rep.media?.cooking} />
+                                        </TD>
+                                        <TD>
+                                            <KitchenStageCell time={rep.ready_at} media={rep.media?.ready} />
+                                        </TD>
+                                        <TD>{rep.prepared_by ?? '-'}</TD>
+                                        <TD className="max-w-xs truncate text-muted">
+                                            {rep.notes ?? '-'}
                                         </TD>
                                     </TR>
                                 ))}
@@ -981,6 +1142,33 @@ function KitchenTab({ kitchen }: { kitchen: any | null }) {
                     )}
                 </CardContent>
             </Card>
+        </div>
+    );
+}
+
+function KitchenStageCell({ time, media }: { time?: string | null; media?: { id: number; url: string }[] }) {
+    if (!time && (!media || media.length === 0)) {
+        return <span className="text-muted">-</span>;
+    }
+
+    return (
+        <div className="space-y-1">
+            <p className="text-xs text-muted">{time ? formatDateTime(time) : '-'}</p>
+            {media && media.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                    {media.map((item, index) => (
+                        <a
+                            key={item.id}
+                            href={item.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-xs font-medium text-primary hover:underline"
+                        >
+                            Foto {index + 1}
+                        </a>
+                    ))}
+                </div>
+            )}
         </div>
     );
 }
@@ -1061,12 +1249,12 @@ function DokumenTab({
         documentable_type: string;
         documentable_id: number;
         category: string;
-        file: File | null;
+        files: File[];
     }>({
         documentable_type: 'event',
         documentable_id: eventId,
         category: 'photo',
-        file: null,
+        files: [],
     });
 
     const submit = (e: FormEvent) => {
@@ -1075,7 +1263,7 @@ function DokumenTab({
             preserveScroll: true,
             forceFormData: true,
             onSuccess: () => {
-                form.reset('file');
+                form.reset('files');
                 setUploadOpen(false);
             },
         });
@@ -1094,34 +1282,79 @@ function DokumenTab({
             <CardContent>
                 {documents.length === 0 ? (
                     <EmptyState
-                        title="Belum ada dokumen"
-                        description="Unggah foto hasil sampling atau dokumen pendukung."
+                        title="Belum ada foto atau video"
+                        description="Unggah foto dan video hasil sampling atau dokumen pendukung."
                     />
                 ) : (
-                    <ul className="divide-y divide-border/70">
-                        {documents.map((d) => (
-                            <li key={d.id} className="flex items-center justify-between py-3">
-                                <div className="flex min-w-0 items-center gap-3">
-                                    <FolderOpen className="h-5 w-5 shrink-0 text-muted" />
-                                    <div className="min-w-0">
-                                        <p className="truncate text-sm text-text">
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        {documents.map((d) => {
+                            const isImage = (d.mime ?? '').startsWith('image/');
+                            const isVideo = (d.mime ?? '').startsWith('video/');
+
+                            return (
+                                <div
+                                    key={d.id}
+                                    className="overflow-hidden rounded-xl border border-border bg-page/50"
+                                >
+                                    <div className="flex h-40 items-center justify-center bg-black/5">
+                                        {isImage ? (
+                                            <a
+                                                href={route('documents.preview', d.id)}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="h-full w-full"
+                                            >
+                                                <img
+                                                    src={route('documents.preview', d.id)}
+                                                    alt={d.original_name}
+                                                    className="h-full w-full object-cover"
+                                                />
+                                            </a>
+                                        ) : isVideo ? (
+                                            <video
+                                                src={route('documents.preview', d.id)}
+                                                controls
+                                                className="h-full w-full bg-black object-contain"
+                                            />
+                                        ) : (
+                                            <FolderOpen className="h-10 w-10 text-muted" />
+                                        )}
+                                    </div>
+                                    <div className="space-y-1 px-3 py-2.5">
+                                        <p className="truncate text-sm font-medium text-text">
                                             {d.original_name}
                                         </p>
                                         <p className="text-xs text-muted">
-                                            {d.category} · {formatNumber(Math.round((d.size ?? 0) / 1024))} KB ·{' '}
-                                            {d.uploaded_by ?? '-'} · {formatDateTime(d.created_at)}
+                                            {d.category} ·{' '}
+                                            {formatNumber(Math.round((d.size ?? 0) / 1024))} KB ·{' '}
+                                            {d.uploaded_by ?? '-'}
                                         </p>
+                                        <div className="flex items-center justify-between pt-1">
+                                            <span className="text-xs text-muted">
+                                                {formatDateTime(d.created_at)}
+                                            </span>
+                                            <div className="flex gap-3">
+                                                <a
+                                                    href={route('documents.preview', d.id)}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="text-xs font-medium text-primary hover:underline"
+                                                >
+                                                    Lihat
+                                                </a>
+                                                <a
+                                                    href={d.url}
+                                                    className="text-xs font-medium text-primary hover:underline"
+                                                >
+                                                    Unduh
+                                                </a>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                                <a
-                                    href={d.url}
-                                    className="shrink-0 text-xs font-medium text-primary hover:underline"
-                                >
-                                    Unduh
-                                </a>
-                            </li>
-                        ))}
-                    </ul>
+                            );
+                        })}
+                    </div>
                 )}
             </CardContent>
 
@@ -1129,11 +1362,11 @@ function DokumenTab({
                 open={uploadOpen}
                 onClose={() => setUploadOpen(false)}
                 title="Unggah Dokumen"
-                description="PDF, gambar, atau dokumen kantor (maks. 10 MB)."
+                description="Foto, video, PDF, atau dokumen kantor (maks. 100 MB per file)."
                 size="sm"
                 onSubmit={submit}
                 submitLabel="Unggah"
-                submitDisabled={form.processing || !form.data.file}
+                submitDisabled={form.processing || form.data.files.length === 0}
             >
                 <Field label="Kategori">
                     <Select
@@ -1141,16 +1374,27 @@ function DokumenTab({
                         onChange={(e) => form.setData('category', e.target.value)}
                     >
                         <option value="photo">Foto</option>
+                        <option value="video">Video</option>
                         <option value="document">Dokumen</option>
                         <option value="supporting">Pendukung</option>
                         <option value="evidence">Bukti</option>
                         <option value="other">Lainnya</option>
                     </Select>
                 </Field>
-                <Field label="Berkas" error={form.errors.file}>
+                <Field
+                    label="Berkas (bisa pilih beberapa)"
+                    error={
+                        form.errors.files ??
+                        (form.errors as Record<string, string | undefined>)['files.0']
+                    }
+                >
                     <Input
                         type="file"
-                        onChange={(e) => form.setData('file', e.target.files?.[0] ?? null)}
+                        multiple
+                        accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx"
+                        onChange={(e) =>
+                            form.setData('files', Array.from(e.target.files ?? []))
+                        }
                     />
                 </Field>
             </ModalForm>

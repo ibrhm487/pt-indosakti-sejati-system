@@ -50,6 +50,8 @@ return [
     'dapo' => [
         'base_url' => env('DAPO_BASE_URL', 'https://dapo.kemendikdasmen.go.id'),
         'token' => env('DAPO_API_TOKEN'),
+        'proxy' => env('DAPO_PROXY'),
+        'ca_bundle' => env('DAPO_CA_BUNDLE') ?: resource_path('certs/cacert.pem'),
     ],
 
 ];

@@ -8,40 +8,68 @@ export type ProductOption = { id: number; name: string };
 
 export type ProductFormData = {
     name: string;
+    description: string;
     sku: string;
+    package_sku: string;
+    product_type: string;
     brand_id: string;
     product_category_id: string;
     unit: string;
+    units_per_case: string;
+    default_lot_code: string;
     minimum_stock: string;
+    uses_jug_conversion: boolean;
+    sachets_per_jug: string;
     is_active: boolean;
 };
 
 export const EMPTY_PRODUCT_FORM: ProductFormData = {
     name: '',
+    description: '',
     sku: '',
+    package_sku: '',
+    product_type: '',
     brand_id: '',
     product_category_id: '',
     unit: 'pcs',
+    units_per_case: '',
+    default_lot_code: '',
     minimum_stock: '0',
+    uses_jug_conversion: false,
+    sachets_per_jug: '',
     is_active: true,
 };
 
 export function productToForm(p: {
     name: string;
+    description?: string | null;
     sku: string;
+    package_sku?: string | null;
+    product_type?: string | null;
     brand_id: number | null;
     product_category_id: number | null;
     unit: string;
+    units_per_case?: number | null;
+    default_lot_code?: string | null;
     minimum_stock: number | null;
+    uses_jug_conversion?: boolean;
+    sachets_per_jug?: number | null;
     is_active: boolean;
 }): ProductFormData {
     return {
         name: p.name,
+        description: p.description ?? '',
         sku: p.sku,
+        package_sku: p.package_sku ?? '',
+        product_type: p.product_type ?? '',
         brand_id: p.brand_id ? String(p.brand_id) : '',
         product_category_id: p.product_category_id ? String(p.product_category_id) : '',
         unit: p.unit,
+        units_per_case: p.units_per_case != null ? String(p.units_per_case) : '',
+        default_lot_code: p.default_lot_code ?? '',
         minimum_stock: p.minimum_stock != null ? String(p.minimum_stock) : '0',
+        uses_jug_conversion: p.uses_jug_conversion ?? false,
+        sachets_per_jug: p.sachets_per_jug != null ? String(p.sachets_per_jug) : '',
         is_active: p.is_active,
     };
 }
@@ -86,8 +114,22 @@ export function ProductFormFields({
                     <Field label="Nama Produk" error={errors.name}>
                         <Input value={data.name} onChange={(e) => setData('name', e.target.value)} />
                     </Field>
-                    <Field label="SKU" error={errors.sku}>
+                    <Field label="Item Number" error={errors.sku}>
                         <Input value={data.sku} onChange={(e) => setData('sku', e.target.value)} />
+                    </Field>
+                    <Field label="SKU / Kemasan" error={errors.package_sku}>
+                        <Input
+                            value={data.package_sku}
+                            onChange={(e) => setData('package_sku', e.target.value)}
+                            placeholder="Contoh: 12X990gr"
+                        />
+                    </Field>
+                    <Field label="Deskripsi" error={errors.description} className="sm:col-span-2">
+                        <Input
+                            value={data.description}
+                            onChange={(e) => setData('description', e.target.value)}
+                            placeholder="Keterangan singkat produk"
+                        />
                     </Field>
                 </div>
             </Section>
@@ -122,9 +164,37 @@ export function ProductFormFields({
 
             <Section icon={<Boxes className="h-3.5 w-3.5" />} title="Stok & Status">
                 <div className="grid gap-4 sm:grid-cols-3">
-                    <Field label="Satuan" error={errors.unit}>
+                    <Field label="UOM" error={errors.unit}>
                         <Input value={data.unit} onChange={(e) => setData('unit', e.target.value)} />
                     </Field>
+                    <Field label="Unit per Case" error={errors.units_per_case}>
+                        <Input
+                            type="number"
+                            min={1}
+                            value={data.units_per_case}
+                            onChange={(event) => setData('units_per_case', event.target.value)}
+                            placeholder="Contoh: 12"
+                        />
+                    </Field>
+                    <Field label="Type" error={errors.product_type}>
+                        <Input
+                            value={data.product_type}
+                            onChange={(e) => setData('product_type', e.target.value)}
+                            placeholder="Contoh: FGR"
+                        />
+                    </Field>
+                    <div className="space-y-1">
+                        <Field label="Lot Code" error={errors.default_lot_code}>
+                            <Input
+                                value={data.default_lot_code}
+                                onChange={(event) => setData('default_lot_code', event.target.value)}
+                                placeholder="Contoh: LOT-2026-001"
+                            />
+                        </Field>
+                        <p className="text-xs text-muted">
+                            Disimpan sebagai metadata produk dan tidak menambah stok.
+                        </p>
+                    </div>
                     <Field label="Stok Minimum" error={errors.minimum_stock}>
                         <Input
                             type="number"
@@ -143,6 +213,31 @@ export function ProductFormFields({
                         </Select>
                     </Field>
                 </div>
+                <p className="text-xs text-muted">
+                    Opsional. Masukkan jumlah UOM produk dalam 1 case untuk perhitungan MIOS.
+                </p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                    <Field label="Konversi JUG">
+                        <Select
+                            value={data.uses_jug_conversion ? '1' : '0'}
+                            onChange={(e) =>
+                                setData('uses_jug_conversion', e.target.value === '1')
+                            }
+                        >
+                            <option value="0">Tidak</option>
+                            <option value="1">Ya, qty = JUG × sachet</option>
+                        </Select>
+                    </Field>
+                    <Field label="Sachet per JUG" error={errors.sachets_per_jug}>
+                        <Input
+                            type="number"
+                            min={1}
+                            value={data.sachets_per_jug}
+                            onChange={(e) => setData('sachets_per_jug', e.target.value)}
+                            placeholder="Contoh: 250"
+                        />
+                    </Field>
+                </div>
             </Section>
         </div>
     );
@@ -156,10 +251,15 @@ export default function ProductForm({
     product: {
         id: number;
         name: string;
+        description?: string | null;
         sku: string;
+        package_sku?: string | null;
+        product_type?: string | null;
         brand_id: number | null;
         product_category_id: number | null;
         unit: string;
+        units_per_case?: number | null;
+        default_lot_code?: string | null;
         minimum_stock: number | null;
         is_active: boolean;
     } | null;

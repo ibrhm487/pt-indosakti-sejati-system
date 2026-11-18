@@ -12,6 +12,7 @@ type Target = {
     quarter: number;
     start_month: number;
     target_cups: number;
+    target_shifts: number;
 };
 
 export default function FjpQuarterlyTargets({
@@ -32,7 +33,7 @@ export default function FjpQuarterlyTargets({
             <Head title="Target Kuartal" />
             <QuarterlyTargetsEditor
                 title="Target Kuartal"
-                subtitle="Ruang kerja permitter — atur target cup per brand untuk tiap kuartal."
+                subtitle="Ruang kerja permitter — atur target shift dan cups per brand untuk tiap kuartal."
                 brands={brands}
                 brandId={brandId}
                 year={year}

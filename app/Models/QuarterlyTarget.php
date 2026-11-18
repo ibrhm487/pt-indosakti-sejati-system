@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class QuarterlyTarget extends Model
 {
-    protected $fillable = ['brand_id', 'year', 'quarter', 'start_month', 'target_cups'];
+    protected $fillable = ['brand_id', 'year', 'quarter', 'start_month', 'target_cups', 'target_shifts'];
 
     protected function casts(): array
     {
@@ -15,6 +15,7 @@ class QuarterlyTarget extends Model
             'quarter' => 'integer',
             'start_month' => 'integer',
             'target_cups' => 'integer',
+            'target_shifts' => 'integer',
         ];
     }
 }

@@ -1,3 +1,4 @@
+import Toaster from '@/Components/Toaster';
 import { PageProps } from '@/types';
 import { Head, Link } from '@inertiajs/react';
 import {
@@ -52,17 +53,23 @@ export default function Welcome({
     return (
         <>
             <Head title="Beranda" />
+            <Toaster />
             <div className="min-h-screen bg-page text-text antialiased">
                 {/* Header */}
                 <header className="sticky top-0 z-30 border-b border-border/70 bg-surface/80 backdrop-blur">
                     <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
                         <div className="flex items-center gap-3">
-                            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary-hover text-sm font-bold text-white shadow-sm">
-                                IS
-                            </div>
-                            <span className="text-sm font-semibold tracking-tight text-text">
-                                PT Indosakti Sejati
-                            </span>
+                            <Link
+                                href="/"
+                                aria-label="PT Indosakti Sejati"
+                                className="flex items-center"
+                            >
+                                <img
+                                    src="/images/indosakti-logo.png"
+                                    alt="PT Indosakti Sejati"
+                                    className="h-9 w-auto max-w-[10rem] object-contain sm:max-w-[12rem]"
+                                />
+                            </Link>
                         </div>
                         <nav className="flex items-center gap-2">
                             {auth.user ? (
@@ -203,9 +210,17 @@ export default function Welcome({
                 <footer className="border-t border-border/70 bg-surface">
                     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
                         <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
-                            <p className="text-sm text-muted">
-                                © {new Date().getFullYear()} PT Indosakti Sejati
-                            </p>
+                            <div className="flex items-center gap-3">
+                                <img
+                                    src="/images/indosakti-logo.png"
+                                    alt="PT Indosakti Sejati"
+                                    className="h-7 w-auto max-w-[8rem] object-contain"
+                                />
+                                <p className="text-sm text-muted">
+                                    © {new Date().getFullYear()} PT Indosakti
+                                    Sejati
+                                </p>
+                            </div>
                             <p className="text-xs text-muted">
                                 Sistem Operasional Event Sampling
                             </p>

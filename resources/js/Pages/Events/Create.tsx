@@ -1,8 +1,10 @@
 import { PageHeader } from '@/Components/AppBits';
 import EventForm, {
+    ConfirmedFjpOption,
     EventFormData,
     EventOption,
     EventTypeOption,
+    VenueOption,
 } from '@/Components/EventForm';
 import { Button, Card } from '@/Components/ui';
 import AppLayout from '@/Layouts/AppLayout';
@@ -13,15 +15,18 @@ export default function EventsCreate({
     brands,
     eventTypes,
     venues,
+    confirmedFjps,
     pics,
 }: {
     brands: EventOption[];
     eventTypes: EventTypeOption[];
-    venues: EventOption[];
+    venues: VenueOption[];
+    confirmedFjps: ConfirmedFjpOption[];
     pics: EventOption[];
 }) {
     const form = useForm<EventFormData>({
         event_name: '',
+        fjp_id: '',
         brand_id: '',
         event_type_id: '',
         venue_id: '',
@@ -53,6 +58,7 @@ export default function EventsCreate({
                         brands={brands}
                         eventTypes={eventTypes}
                         venues={venues}
+                        confirmedFjps={confirmedFjps}
                         pics={pics}
                     />
                 </Card>

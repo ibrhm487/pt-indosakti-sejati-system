@@ -1,11 +1,14 @@
 import '../css/app.css';
 import './bootstrap';
 
+import { installGlobalToastListeners } from '@/lib/toast';
 import { createInertiaApp } from '@inertiajs/react';
 import { StrictMode, type ComponentType } from 'react';
 import { createRoot } from 'react-dom/client';
 
 const appName = import.meta.env.VITE_APP_NAME || 'IEMS';
+
+installGlobalToastListeners();
 
 const pages = import.meta.glob<{ default: ComponentType }>('./Pages/**/*.tsx');
 
@@ -28,6 +31,6 @@ createInertiaApp({
         );
     },
     progress: {
-        color: '#1F3A5F',
+        color: '#D91E2A',
     },
 });

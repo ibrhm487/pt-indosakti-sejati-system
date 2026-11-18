@@ -13,6 +13,8 @@ type MovementRow = {
     type_label: string;
     quantity: number;
     balance_after: number;
+    lot_code: string | null;
+    expired_date: string | null;
     notes: string | null;
     by: string | null;
     at: string | null;
@@ -149,6 +151,7 @@ export default function InventoryMovements({
                                     <TH>Waktu</TH>
                                     <TH>Produk</TH>
                                     <TH>Jenis</TH>
+                                    <TH>Lot</TH>
                                     <TH className="text-right">Jumlah</TH>
                                     <TH className="text-right">Saldo</TH>
                                     <TH>Oleh</TH>
@@ -164,6 +167,12 @@ export default function InventoryMovements({
                                             <p className="text-xs text-muted">{m.sku}</p>
                                         </TD>
                                         <TD>{m.type_label}</TD>
+                                        <TD>
+                                            <p className="font-medium text-text">{m.lot_code ?? '-'}</p>
+                                            {m.expired_date && (
+                                                <p className="text-xs text-muted">exp {m.expired_date}</p>
+                                            )}
+                                        </TD>
                                         <TD className="text-right">{formatNumber(m.quantity)}</TD>
                                         <TD className="text-right">{formatNumber(m.balance_after)}</TD>
                                         <TD>{m.by ?? '-'}</TD>

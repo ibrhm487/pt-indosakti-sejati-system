@@ -3,8 +3,10 @@
 namespace Tests\Feature;
 
 use App\Enums\PermitStatus;
+use App\Models\Fjp;
 use App\Models\PermitRequest;
 use App\Models\User;
+use App\Models\Venue;
 use Database\Seeders\DemoDataSeeder;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -103,9 +105,37 @@ class PermitTransitionTest extends TestCase
         $this->assertSame(PermitStatus::APPROVED, $permit->fresh()->status);
     }
 
+    public function test_permit_form_lists_only_venues_with_a_confirmed_fjp(): void
+    {
+        $admin = $this->user('admin@indosakti.com');
+
+        $confirmedVenue = Venue::create(['name' => 'Lokasi Confirm']);
+        $plannedVenue = Venue::create(['name' => 'Lokasi Plan']);
+        $this->makeFjp($confirmedVenue, Fjp::STATUS_CONFIRM);
+        $this->makeFjp($plannedVenue, 'plan');
+
+        $response = $this->actingAs($admin)->get(route('permits.create'));
+
+        $venues = collect($response->viewData('page')['props']['venues']);
+        $this->assertTrue($venues->contains('id', $confirmedVenue->id));
+        $this->assertFalse($venues->contains('id', $plannedVenue->id));
+    }
+
     private function user(string $email): User
     {
         return User::where('email', $email)->firstOrFail();
+    }
+
+    private function makeFjp(Venue $venue, string $status): Fjp
+    {
+        return Fjp::create([
+            'fjp_number' => Fjp::generateNumber(),
+            'event_name' => 'FJP '.$venue->name,
+            'venue_id' => $venue->id,
+            'event_date' => now()->addDays(7)->toDateString(),
+            'permit_status' => PermitStatus::DRAFT,
+            'status' => $status,
+        ]);
     }
 
     private function createPermit(PermitStatus $status): PermitRequest

@@ -30,6 +30,7 @@ type Target = {
     quarter: number;
     start_month: number;
     target_cups: number;
+    target_shifts: number;
 };
 
 function EditTargetsModal({
@@ -79,7 +80,7 @@ function EditTargetsModal({
             onClose={onClose}
             size="lg"
             title={`Edit Target Kuartal ${year}`}
-            description="Atur bulan mulai dan target cup untuk tiap kuartal."
+            description="Atur bulan mulai serta target shift dan cups untuk tiap kuartal."
             footer={
                 <>
                     <Button
@@ -109,7 +110,7 @@ function EditTargetsModal({
                     {data.targets.map((t, idx) => (
                         <div
                             key={t.quarter}
-                            className="grid items-end gap-3 rounded-xl border border-border bg-page/50 p-3 sm:grid-cols-[auto_1fr_1fr]"
+                            className="grid items-end gap-3 rounded-xl border border-border bg-page/50 p-3 sm:grid-cols-[auto_1fr_1fr_1fr]"
                         >
                             <span className="mb-2 inline-flex h-9 w-12 items-center justify-center rounded-lg bg-primary/10 text-sm font-semibold text-primary">
                                 Q{t.quarter}
@@ -131,6 +132,27 @@ function EditTargetsModal({
                                     onChange={(event) =>
                                         setData(
                                             `targets.${idx}.start_month` as any,
+                                            parseInt(event.target.value),
+                                        )
+                                    }
+                                />
+                            </Field>
+                            <Field
+                                label="Target Shift"
+                                className="mb-0"
+                                error={
+                                    errors[
+                                        `targets.${idx}.target_shifts` as keyof typeof errors
+                                    ] as string
+                                }
+                            >
+                                <Input
+                                    type="number"
+                                    min={0}
+                                    value={t.target_shifts}
+                                    onChange={(event) =>
+                                        setData(
+                                            `targets.${idx}.target_shifts` as any,
                                             parseInt(event.target.value),
                                         )
                                     }
@@ -199,7 +221,8 @@ export default function QuarterlyTargetsEditor({
 }) {
     const [modalOpen, setModalOpen] = useState(false);
     const brandName = brands.find((b) => b.id === brandId)?.name ?? '—';
-    const totalTarget = targets.reduce((sum, t) => sum + (t.target_cups || 0), 0);
+    const totalTargetCups = targets.reduce((sum, t) => sum + (t.target_cups || 0), 0);
+    const totalTargetShifts = targets.reduce((sum, t) => sum + (t.target_shifts || 0), 0);
 
     const navigate = (params: { brand?: number | null; year?: number }) => {
         router.get(
@@ -248,7 +271,7 @@ export default function QuarterlyTargetsEditor({
             <Card>
                 <CardHeader className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                        <CardTitle>Target Cup per Kuartal</CardTitle>
+                        <CardTitle>Target Shift &amp; Cups per Kuartal</CardTitle>
                         <p className="mt-0.5 text-xs text-muted">
                             {brandName} · {year}
                         </p>
@@ -276,6 +299,7 @@ export default function QuarterlyTargetsEditor({
                             <TR>
                                 <TH>Kuartal</TH>
                                 <TH>Bulan Mulai</TH>
+                                <TH className="text-right">Target Shift</TH>
                                 <TH className="text-right">Target (cup)</TH>
                             </TR>
                         </THead>
@@ -291,6 +315,9 @@ export default function QuarterlyTargetsEditor({
                                         Bulan {target.start_month}
                                     </TD>
                                     <TD className="text-right font-mono text-text">
+                                        {formatNumber(target.target_shifts)}
+                                    </TD>
+                                    <TD className="text-right font-mono text-text">
                                         {formatNumber(target.target_cups)}
                                     </TD>
                                 </TR>
@@ -302,10 +329,13 @@ export default function QuarterlyTargetsEditor({
                                     colSpan={2}
                                     className="text-xs font-semibold uppercase tracking-wide text-muted"
                                 >
-                                    Total {year} (cup)
+                                    Total {year}
                                 </TD>
                                 <TD className="text-right font-mono font-semibold text-text">
-                                    {formatNumber(totalTarget)}
+                                    {formatNumber(totalTargetShifts)} shift
+                                </TD>
+                                <TD className="text-right font-mono font-semibold text-text">
+                                    {formatNumber(totalTargetCups)} cup
                                 </TD>
                             </TR>
                         </tfoot>

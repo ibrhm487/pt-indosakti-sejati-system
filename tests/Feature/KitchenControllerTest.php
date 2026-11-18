@@ -70,6 +70,34 @@ class KitchenControllerTest extends TestCase
         $this->assertSame(1, KitchenRequest::where('event_id', $event->id)->count());
     }
 
+    public function test_kitchen_role_uses_report_mode_on_index_and_create_pages(): void
+    {
+        $this->seed(RolePermissionSeeder::class);
+        $kitchenUser = User::where('email', 'kitchen@indosakti.com')->firstOrFail();
+        $admin = User::where('email', 'admin@indosakti.com')->firstOrFail();
+
+        $this->actingAs($kitchenUser)
+            ->get(route('kitchen.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Kitchen/Index')
+                ->where('reportMode', true));
+
+        $this->actingAs($kitchenUser)
+            ->get(route('kitchen.create'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Kitchen/Create')
+                ->where('reportMode', true));
+
+        $this->actingAs($admin)
+            ->get(route('kitchen.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Kitchen/Index')
+                ->where('reportMode', false));
+    }
+
     public function test_kitchen_report_stores_cooking_and_washing_photos(): void
     {
         $this->seed(RolePermissionSeeder::class);
@@ -110,6 +138,178 @@ class KitchenControllerTest extends TestCase
         $this->actingAs($kitchenUser)
             ->get(route('kitchen.reports.washing-photo', $report))
             ->assertOk();
+    }
+
+    public function test_washing_stage_stores_multiple_photos_and_automatic_timestamp(): void
+    {
+        $this->seed(RolePermissionSeeder::class);
+        Storage::fake('local');
+        $kitchenUser = User::where('email', 'kitchen@indosakti.com')->firstOrFail();
+        $pic = User::where('email', 'pic@indosakti.com')->firstOrFail();
+        $kitchen = $this->createKitchenRequest($pic);
+
+        $this->actingAs($kitchenUser)
+            ->from(route('kitchen.show', $kitchen))
+            ->post(route('kitchen.reports.washing', $kitchen), [
+                'washing_photos' => [
+                    UploadedFile::fake()->image('cuci-1.jpg'),
+                    UploadedFile::fake()->image('cuci-2.jpg'),
+                    UploadedFile::fake()->image('cuci-3.jpg'),
+                    UploadedFile::fake()->image('cuci-4.jpg'),
+                ],
+                'washing_at' => now()->subDay()->toDateTimeString(),
+            ])
+            ->assertRedirect(route('kitchen.show', $kitchen))
+            ->assertSessionHasNoErrors();
+
+        $report = $kitchen->reports()->firstOrFail();
+        $this->assertNotNull($report->washing_at);
+        $this->assertTrue($report->washing_at->isToday());
+        $this->assertNull($report->cooking_at);
+        $this->assertSame(4, $report->media()->where('type', 'washing')->count());
+        $this->assertSame($report->media()->where('type', 'washing')->first()->path, $report->washing_photo_path);
+        Storage::disk('local')->assertExists($report->washing_photo_path);
+    }
+
+    public function test_cooking_stage_requires_washing_report_first(): void
+    {
+        $this->seed(RolePermissionSeeder::class);
+        Storage::fake('local');
+        $kitchenUser = User::where('email', 'kitchen@indosakti.com')->firstOrFail();
+        $pic = User::where('email', 'pic@indosakti.com')->firstOrFail();
+        $kitchen = $this->createKitchenRequest($pic);
+
+        $this->actingAs($kitchenUser)
+            ->from(route('kitchen.show', $kitchen))
+            ->post(route('kitchen.reports.cooking', $kitchen), [
+                'cooking_photos' => [UploadedFile::fake()->image('masak.jpg')],
+            ])
+            ->assertRedirect(route('kitchen.show', $kitchen))
+            ->assertSessionHasErrors('cooking_photos');
+
+        $this->assertSame(0, $kitchen->reports()->count());
+    }
+
+    public function test_cooking_photos_are_merged_into_the_same_report(): void
+    {
+        $this->seed(RolePermissionSeeder::class);
+        Storage::fake('local');
+        $kitchenUser = User::where('email', 'kitchen@indosakti.com')->firstOrFail();
+        $pic = User::where('email', 'pic@indosakti.com')->firstOrFail();
+        $kitchen = $this->createKitchenRequest($pic);
+
+        $this->actingAs($kitchenUser)->post(route('kitchen.reports.washing', $kitchen), [
+            'washing_photos' => [UploadedFile::fake()->image('cuci.jpg')],
+        ])->assertSessionHasNoErrors();
+
+        $reportId = $kitchen->reports()->firstOrFail()->id;
+
+        $this->actingAs($kitchenUser)->post(route('kitchen.reports.cooking', $kitchen), [
+            'cooking_photos' => [
+                UploadedFile::fake()->image('masak-1.jpg'),
+                UploadedFile::fake()->image('masak-2.jpg'),
+            ],
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame(1, $kitchen->reports()->count());
+
+        $report = $kitchen->reports()->findOrFail($reportId);
+        $this->assertNotNull($report->cooking_at);
+        $this->assertSame(2, $report->media()->where('type', 'cooking')->count());
+        $this->assertSame(1, $report->media()->where('type', 'washing')->count());
+    }
+
+    public function test_ready_stage_requires_cooking_report_first(): void
+    {
+        $this->seed(RolePermissionSeeder::class);
+        Storage::fake('local');
+        $kitchenUser = User::where('email', 'kitchen@indosakti.com')->firstOrFail();
+        $pic = User::where('email', 'pic@indosakti.com')->firstOrFail();
+        $kitchen = $this->createKitchenRequest($pic);
+
+        $this->actingAs($kitchenUser)->post(route('kitchen.reports.washing', $kitchen), [
+            'washing_photos' => [UploadedFile::fake()->image('cuci.jpg')],
+        ])->assertSessionHasNoErrors();
+
+        $this->actingAs($kitchenUser)
+            ->from(route('kitchen.show', $kitchen))
+            ->post(route('kitchen.reports.ready', $kitchen), [
+                'ready_photos' => [UploadedFile::fake()->image('siap.jpg')],
+            ])
+            ->assertSessionHasErrors('ready_photos');
+    }
+
+    public function test_ready_stage_completes_task_automatically(): void
+    {
+        $this->seed(RolePermissionSeeder::class);
+        Storage::fake('local');
+        $kitchenUser = User::where('email', 'kitchen@indosakti.com')->firstOrFail();
+        $pic = User::where('email', 'pic@indosakti.com')->firstOrFail();
+        $event = $this->createEvent($pic, jugRequired: true, code: 'EVT-KITCHEN-READY');
+        $kitchen = $event->kitchenRequest()->create([
+            'jug_quantity' => 24,
+            'status' => KitchenStatus::PENDING,
+        ]);
+
+        $this->actingAs($kitchenUser)->post(route('kitchen.reports.washing', $kitchen), [
+            'washing_photos' => [UploadedFile::fake()->image('cuci.jpg')],
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame(KitchenStatus::PREPARING, $kitchen->fresh()->status);
+
+        $this->actingAs($kitchenUser)->post(route('kitchen.reports.cooking', $kitchen), [
+            'cooking_photos' => [UploadedFile::fake()->image('masak.jpg')],
+        ])->assertSessionHasNoErrors();
+
+        $this->actingAs($kitchenUser)->post(route('kitchen.reports.ready', $kitchen), [
+            'ready_photos' => [
+                UploadedFile::fake()->image('siap-1.jpg'),
+                UploadedFile::fake()->image('siap-2.jpg'),
+                UploadedFile::fake()->image('siap-3.jpg'),
+            ],
+        ])->assertSessionHasNoErrors();
+
+        $report = $kitchen->reports()->firstOrFail();
+        $this->assertNotNull($report->ready_at);
+        $this->assertTrue($report->isComplete());
+        $this->assertSame(3, $report->media()->where('type', 'ready')->count());
+        $this->assertSame(KitchenStatus::READY, $kitchen->fresh()->status);
+
+        $readyMedia = $report->media()->where('type', 'ready')->firstOrFail();
+
+        $this->actingAs($kitchenUser)
+            ->get(route('kitchen.reports.media', $readyMedia))
+            ->assertOk();
+    }
+
+    public function test_kitchen_media_can_be_deleted_and_cover_is_updated(): void
+    {
+        $this->seed(RolePermissionSeeder::class);
+        Storage::fake('local');
+        $kitchenUser = User::where('email', 'kitchen@indosakti.com')->firstOrFail();
+        $pic = User::where('email', 'pic@indosakti.com')->firstOrFail();
+        $kitchen = $this->createKitchenRequest($pic);
+
+        $this->actingAs($kitchenUser)->post(route('kitchen.reports.washing', $kitchen), [
+            'washing_photos' => [
+                UploadedFile::fake()->image('cuci-1.jpg'),
+                UploadedFile::fake()->image('cuci-2.jpg'),
+            ],
+        ])->assertSessionHasNoErrors();
+
+        $report = $kitchen->reports()->firstOrFail();
+        $first = $report->media()->where('type', 'washing')->orderBy('id')->firstOrFail();
+        $second = $report->media()->where('type', 'washing')->orderByDesc('id')->firstOrFail();
+
+        $this->assertSame($first->path, $report->washing_photo_path);
+
+        $this->actingAs($kitchenUser)
+            ->delete(route('kitchen.reports.media.destroy', $first))
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseMissing('kitchen_report_media', ['id' => $first->id]);
+        $this->assertSame($second->path, $report->fresh()->washing_photo_path);
+        Storage::disk('local')->assertMissing($first->path);
     }
 
     public function test_washing_photo_requires_login(): void

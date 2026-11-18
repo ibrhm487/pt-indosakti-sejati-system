@@ -105,11 +105,13 @@ class SmokeTest extends TestCase
     public function test_each_role_can_render_its_landing_pages(): void
     {
         $roles = [
+            'developer@indosakti.com' => ['/dashboard', '/admin/users', '/events', '/fjp', '/warehouse/inventory', '/kitchen'],
             'permitter@indosakti.com' => ['/dashboard', '/fjp', '/permits'],
             'pic@indosakti.com' => ['/dashboard', '/events'],
             'team@indosakti.com' => ['/dashboard', '/team'],
             'warehouse@indosakti.com' => ['/dashboard', '/warehouse/inventory', '/warehouse/mrv'],
             'kitchen@indosakti.com' => ['/dashboard', '/kitchen'],
+            'admin.event@indosakti.com' => ['/dashboard', '/events', '/reports/by-event', '/attendance'],
         ];
 
         foreach ($roles as $email => $uris) {

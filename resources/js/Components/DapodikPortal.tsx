@@ -63,7 +63,7 @@ export default function DapodikPortal() {
             setLoading(true);
             try {
                 const res = await fetch(
-                    `${route('dapodik.search')}?q=${encodeURIComponent(q)}&jabodetabek=true&jenjang=SD&limit=200`,
+                    `${route('dapodik.search')}?q=${encodeURIComponent(q)}&jabodetabek=1&jenjang=SD&limit=200`,
                     {
                         headers: { Accept: 'application/json' },
                         signal: controller.signal,

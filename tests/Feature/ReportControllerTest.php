@@ -6,6 +6,7 @@ use App\Enums\EventStatus;
 use App\Enums\ReportStatus;
 use App\Models\Event;
 use App\Models\EventReport;
+use App\Models\EventTeamMember;
 use App\Models\User;
 use Database\Seeders\DemoDataSeeder;
 use Database\Seeders\RolePermissionSeeder;
@@ -53,7 +54,10 @@ class ReportControllerTest extends TestCase
         $response->assertOk()
             ->assertInertia(fn (Assert $page) => $page->component('Reports/ByEvent'));
 
-        $eventRows = collect($response->inertiaProps('events.data'))
+        $eventRows = collect($response->inertiaProps('eventGroups'))
+            ->flatMap(fn (array $brand) => collect($brand['event_types'])
+                ->flatMap(fn (array $type) => collect($type['dates'])
+                    ->flatMap(fn (array $date) => $date['events'])))
             ->where('id', $event->id)
             ->values();
 
@@ -112,6 +116,27 @@ class ReportControllerTest extends TestCase
             ->assertNotFound();
 
         $this->assertDatabaseMissing('event_reports', ['event_id' => $event->id]);
+    }
+
+    public function test_team_report_form_preselects_the_assigned_event_from_the_schedule_link(): void
+    {
+        $this->seedWorkspaceData();
+        $team = User::where('email', 'team@indosakti.com')->firstOrFail();
+        $pic = User::where('email', 'pic@indosakti.com')->firstOrFail();
+        $event = $this->createEvent($pic);
+        EventTeamMember::create(['event_id' => $event->id, 'user_id' => $team->id]);
+
+        $response = $this->actingAs($team)
+            ->get(route('reports.create', ['event' => $event->id]));
+
+        $response->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Reports/Create')
+                ->where('initialEventId', $event->id));
+
+        $this->assertTrue(
+            collect($response->inertiaProps('events'))->contains('id', $event->id),
+        );
     }
 
     public function test_team_cannot_submit_another_users_draft_report(): void
@@ -253,6 +278,66 @@ class ReportControllerTest extends TestCase
             'id' => $report->id,
             'status' => ReportStatus::DRAFT->value,
         ]);
+    }
+
+    public function test_daily_report_groups_output_by_event_date(): void
+    {
+        $this->seedWorkspaceData();
+        $adminEvent = User::where('email', 'admin.event@indosakti.com')->firstOrFail();
+        $submitter = User::where('email', 'team@indosakti.com')->firstOrFail();
+
+        $event = Event::create([
+            'event_code' => 'EVT-DAILY-TEST',
+            'event_name' => 'Event Rekap Harian',
+            'event_date' => '2030-01-15',
+            'sampling_target' => 500,
+            'status' => EventStatus::COMPLETED,
+        ]);
+
+        $this->createReport($event, $submitter, 400);
+
+        $response = $this->actingAs($adminEvent)->get('/reports/daily?date=2030-01-15');
+
+        $response->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Reports/Daily')
+                ->where('summary.events', 1)
+                ->where('summary.reported', 1)
+                ->where('summary.missing', 0)
+                ->where('summary.target', 500)
+                ->where('summary.actual', 400)
+                ->where('summary.achievement', 80)
+                ->has('days', 1)
+                ->where('days.0.date', '2030-01-15')
+                ->where('days.0.events.0.event_code', 'EVT-DAILY-TEST')
+                ->where('days.0.events.0.report_status', ReportStatus::SUBMITTED->value)
+            );
+    }
+
+    public function test_daily_report_export_streams_a_csv(): void
+    {
+        $this->seedWorkspaceData();
+        $adminEvent = User::where('email', 'admin.event@indosakti.com')->firstOrFail();
+        $submitter = User::where('email', 'team@indosakti.com')->firstOrFail();
+
+        $event = Event::create([
+            'event_code' => 'EVT-DAILY-EXPORT',
+            'event_name' => 'Event Export Harian',
+            'event_date' => '2030-01-16',
+            'sampling_target' => 300,
+            'status' => EventStatus::COMPLETED,
+        ]);
+
+        $this->createReport($event, $submitter, 315);
+
+        $response = $this->actingAs($adminEvent)->get('/reports/daily/export?date=2030-01-16');
+
+        $response->assertOk();
+
+        $csv = $response->streamedContent();
+        $this->assertStringContainsString('Kode Event', $csv);
+        $this->assertStringContainsString('EVT-DAILY-EXPORT', $csv);
+        $this->assertStringContainsString('Event Export Harian', $csv);
     }
 
     private function seedWorkspaceData(): void

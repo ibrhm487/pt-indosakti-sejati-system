@@ -1,16 +1,20 @@
 import {
-    CardTable,
+    ConfirmButton,
     EmptyState,
     FilterCard,
     PageHeader,
-    Pagination,
     SearchInput,
 } from '@/Components/AppBits';
 import EventForm, {
+    ConfirmedFjpOption,
     EventFormData,
     EventOption,
     EventTypeOption,
 } from '@/Components/EventForm';
+import {
+    EventBrandGroup,
+    EventGroupView,
+} from '@/Components/EventGroupView';
 import {
     Button,
     Modal,
@@ -24,13 +28,13 @@ import {
     TR,
 } from '@/Components/ui';
 import AppLayout from '@/Layouts/AppLayout';
-import { formatDate } from '@/lib/utils';
-import { Head, Link, router, useForm } from '@inertiajs/react';
-import { CalendarDays, ChevronLeft, ChevronRight, List, Plus } from 'lucide-react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { CalendarDays, ChevronLeft, ChevronRight, List, Pencil, Plus, Trash2, Users } from 'lucide-react';
 import { FormEvent, useMemo, useState } from 'react';
 
 const EMPTY_FORM: EventFormData = {
     event_name: '',
+    fjp_id: '',
     brand_id: '',
     event_type_id: '',
     venue_id: '',
@@ -57,31 +61,39 @@ const WEEKDAYS = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
 type View = 'list' | 'calendar';
 
 export default function EventsIndex({
-    events,
+    eventGroups,
     calendarEvents,
     month,
     filters,
     statuses,
     canCreate,
+    canUpdate,
+    canDelete,
     brands,
     eventTypes,
+    confirmedFjps,
     venues,
     pics,
 }: {
-    events: any;
+    eventGroups: EventBrandGroup[];
     calendarEvents: CalendarEvent[];
     month: string;
-    filters: { search?: string; status?: string; brand_id?: number | string; venue_id?: number | string };
+    filters: { search?: string; status?: string; brand_id?: number | string; event_type_id?: number | string; venue_id?: number | string };
     statuses: { value: string; label: string }[];
     canCreate: boolean;
+    canUpdate: boolean;
+    canDelete: boolean;
     brands: EventOption[];
     eventTypes: EventTypeOption[];
+    confirmedFjps: ConfirmedFjpOption[];
     venues: EventOption[];
     pics: EventOption[];
 }) {
+    const { errors } = usePage().props as any;
     const [search, setSearch] = useState(filters.search ?? '');
     const [status, setStatus] = useState(filters.status ?? '');
     const [brandId, setBrandId] = useState(filters.brand_id ? String(filters.brand_id) : '');
+    const [eventTypeId, setEventTypeId] = useState(filters.event_type_id ? String(filters.event_type_id) : '');
     const [venueId, setVenueId] = useState(filters.venue_id ? String(filters.venue_id) : '');
     const [view, setView] = useState<View>('list');
     const [createOpen, setCreateOpen] = useState(false);
@@ -91,7 +103,7 @@ export default function EventsIndex({
         e.preventDefault();
         router.get(
             route('events.index'),
-            { search, status, brand_id: brandId || undefined, venue_id: venueId || undefined },
+            { search, status, brand_id: brandId || undefined, event_type_id: eventTypeId || undefined, venue_id: venueId || undefined },
             { preserveState: true },
         );
     };
@@ -102,7 +114,7 @@ export default function EventsIndex({
         const next = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
         router.get(
             route('events.index'),
-            { search, status, brand_id: brandId || undefined, venue_id: venueId || undefined, month: next },
+            { search, status, brand_id: brandId || undefined, event_type_id: eventTypeId || undefined, venue_id: venueId || undefined, month: next },
             { preserveState: true, preserveScroll: true },
         );
     };
@@ -172,8 +184,14 @@ export default function EventsIndex({
                 )}
             </PageHeader>
 
+            {errors?.event && (
+                <div className="mb-4 rounded-md border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">
+                    {errors.event}
+                </div>
+            )}
+
             <FilterCard>
-                <form onSubmit={submit} className="flex flex-col gap-3 sm:flex-row">
+                <form onSubmit={submit} className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                     <SearchInput
                         placeholder="Cari nama atau kode event…"
                         value={search}
@@ -202,6 +220,25 @@ export default function EventsIndex({
                                 {b.name}
                             </option>
                         ))}
+                    </Select>
+                    <Select
+                        className="sm:w-52"
+                        value={eventTypeId}
+                        onChange={(e) => setEventTypeId(e.target.value)}
+                    >
+                        <option value="">Semua jenis event</option>
+                        {eventTypes
+                            .filter(
+                                (t) =>
+                                    !brandId ||
+                                    !t.brand_id ||
+                                    String(t.brand_id) === brandId,
+                            )
+                            .map((t) => (
+                                <option key={t.id} value={t.id}>
+                                    {t.name}
+                                </option>
+                            ))}
                     </Select>
                     <Select
                         className="sm:w-48"
@@ -258,7 +295,8 @@ export default function EventsIndex({
                             Berikutnya <ChevronRight className="h-4 w-4" />
                         </Button>
                     </div>
-                    <div className="grid grid-cols-7 gap-1">
+                    <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+                    <div className="grid min-w-[640px] grid-cols-7 gap-1">
                         {WEEKDAYS.map((day) => (
                             <div
                                 key={day}
@@ -296,61 +334,71 @@ export default function EventsIndex({
                             </div>
                         ))}
                     </div>
+                    </div>
                 </div>
             ) : (
-                <CardTable>
-                    {events.data.length === 0 ? (
+                <EventGroupView
+                    groups={eventGroups}
+                    empty={
                         <EmptyState
                             title="Belum ada event"
-                            description="Buat event baru untuk memulai."
+                            description="Event yang sesuai filter akan tampil di sini."
                         />
-                    ) : (
-                        <>
-                            <Table>
-                                <THead>
-                                    <TR>
-                                        <TH>Kode / Event</TH>
-                                        <TH>Brand</TH>
-                                        <TH>Lokasi</TH>
-                                        <TH>Tanggal</TH>
-                                        <TH>PIC</TH>
-                                        <TH>JUG</TH>
-                                        <TH>Status</TH>
-                                    </TR>
-                                </THead>
-                                <TBody>
-                                    {events.data.map((e: any) => (
-                                        <TR key={e.id}>
-                                            <TD>
-                                                <Link
-                                                    href={route('events.show', e.id)}
-                                                    className="font-medium text-text hover:text-primary"
-                                                >
-                                                    {e.event_name}
+                    }
+                    renderTable={(rows, type) => (
+                        <Table>
+                            <THead>
+                                <TR>
+                                    <TH>Kode / Event</TH>
+                                    <TH>{type.requires_school ? 'Sekolah' : 'Venue'}</TH>
+                                    <TH>Kota</TH>
+                                    <TH>PIC</TH>
+                                    <TH>JUG</TH>
+                                    <TH>Status</TH>
+                                    <TH className="text-right">Aksi</TH>
+                                </TR>
+                            </THead>
+                            <TBody>
+                                {rows.map((event) => (
+                                    <TR key={event.id}>
+                                        <TD>
+                                            <Link href={route('events.show', event.id)} className="font-medium text-text hover:text-primary">
+                                                {event.event_name}
+                                            </Link>
+                                            <p className="font-mono text-xs text-muted">{event.event_code}</p>
+                                        </TD>
+                                        <TD>{event.venue ?? '-'}</TD>
+                                        <TD>{event.venue_city ?? '-'}</TD>
+                                        <TD>{event.pic ?? '-'}</TD>
+                                        <TD>{event.jug_required ? 'Ya' : 'Tidak'}</TD>
+                                        <TD><StatusBadge status={event.status} label={event.status_label} /></TD>
+                                        <TD className="text-right">
+                                            <div className="flex justify-end gap-2">
+                                                <Link href={route('events.show', { event: event.id, tab: 'tim' })}>
+                                                    <Button size="sm" variant="outline"><Users className="h-3.5 w-3.5" /> Tim</Button>
                                                 </Link>
-                                                <p className="font-mono text-xs text-muted">
-                                                    {e.event_code}
-                                                </p>
-                                            </TD>
-                                            <TD>{e.brand ?? '-'}</TD>
-                                            <TD>{e.venue ?? '-'}</TD>
-                                            <TD>{formatDate(e.event_date)}</TD>
-                                            <TD>{e.pic ?? '-'}</TD>
-                                            <TD>{e.jug_required ? 'Ya' : 'Tidak'}</TD>
-                                            <TD>
-                                                <StatusBadge
-                                                    status={e.status}
-                                                    label={e.status_label}
-                                                />
-                                            </TD>
-                                        </TR>
-                                    ))}
-                                </TBody>
-                            </Table>
-                            <Pagination paginator={events} />
-                        </>
+                                                {canUpdate && !['completed', 'cancelled'].includes(event.status) && (
+                                                    <Link href={route('events.edit', event.id)}>
+                                                        <Button size="sm" variant="outline"><Pencil className="h-3.5 w-3.5" /> Ubah</Button>
+                                                    </Link>
+                                                )}
+                                                {canDelete && (
+                                                    <ConfirmButton
+                                                        title="Hapus Event"
+                                                        description={`Hapus event ${event.event_name}? Data penugasan tim juga akan dihapus.`}
+                                                        onConfirm={() => router.delete(route('events.destroy', event.id), { preserveScroll: true })}
+                                                    >
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                    </ConfirmButton>
+                                                )}
+                                            </div>
+                                        </TD>
+                                    </TR>
+                                ))}
+                            </TBody>
+                        </Table>
                     )}
-                </CardTable>
+                />
             )}
 
             <Modal
@@ -387,6 +435,7 @@ export default function EventsIndex({
                         brands={brands}
                         eventTypes={eventTypes}
                         venues={venues}
+                        confirmedFjps={confirmedFjps}
                         pics={pics}
                     />
                 </form>

@@ -1,157 +1,101 @@
-import { EmptyState, PageHeader, Pagination } from '@/Components/AppBits';
-import QuickReportForm, {
-    EMPTY_QUICK_REPORT_FORM,
-    QuickReportEventOption,
-    QuickReportFormData,
-} from '@/Components/QuickReportForm';
-import { Button, Card, Modal } from '@/Components/ui';
+import { EmptyState, PageHeader } from '@/Components/AppBits';
+import { QuickReportEventOption } from '@/Components/QuickReportForm';
+import { Badge, Button, Card } from '@/Components/ui';
 import AppLayout from '@/Layouts/AppLayout';
-import { formatDateTime } from '@/lib/utils';
-import { Head, useForm } from '@inertiajs/react';
+import { formatDate, formatDateTime } from '@/lib/utils';
+import { Head, Link } from '@inertiajs/react';
 import { Plus } from 'lucide-react';
-import { FormEvent, useState } from 'react';
 
-type QuickReport = {
-    id: number;
-    title: string;
-    body: string | null;
-    photo_url: string | null;
-    created_at: string | null;
-    event: string | null;
-    event_date: string | null;
-    user: string | null;
-};
-
-type Paginator = {
-    data: QuickReport[];
-    links: { url: string | null; label: string; active: boolean }[];
-    from: number | null;
-    to: number | null;
-    total: number;
+type QuickReportTask = QuickReportEventOption & {
+    status: 'pending' | 'submitted';
+    status_label: string;
+    report_id: number | null;
+    submitted_at: string | null;
 };
 
 export default function QuickReportsIndex({
-    reports,
     canCreate,
     events,
+    tasks,
 }: {
-    reports: Paginator;
     canCreate: boolean;
     events: QuickReportEventOption[];
+    tasks: QuickReportTask[];
 }) {
-    const [createOpen, setCreateOpen] = useState(false);
-    const form = useForm<QuickReportFormData>(EMPTY_QUICK_REPORT_FORM);
-
-    const openCreate = () => {
-        form.setData(EMPTY_QUICK_REPORT_FORM);
-        form.clearErrors();
-        setCreateOpen(true);
-    };
-
-    const submitCreate = (e: FormEvent) => {
-        e.preventDefault();
-        form.post(route('quick-reports.store'), {
-            forceFormData: true,
-            onSuccess: () => {
-                setCreateOpen(false);
-                form.reset();
-            },
-        });
-    };
-
     return (
         <AppLayout title="Quick Report">
             <Head title="Quick Report" />
             <PageHeader
                 title="Quick Report"
-                subtitle="Catatan singkat kegiatan lapangan beserta bukti foto."
+                subtitle="Pilih tugas event, lengkapi form, lalu kirim laporan foto/video sekaligus absensi."
             >
-                {canCreate && (
-                    <Button variant="primary" onClick={openCreate}>
-                        <Plus className="h-4 w-4" /> Buat Quick Report
-                    </Button>
+                {canCreate && events.length > 0 && (
+                    <Link href={route('quick-reports.create')}>
+                        <Button variant="primary">
+                            <Plus className="h-4 w-4" /> Buat Quick Report
+                        </Button>
+                    </Link>
                 )}
             </PageHeader>
 
-            {reports.data.length === 0 ? (
+            {tasks.length === 0 ? (
                 <Card>
                     <EmptyState
-                        title="Belum ada Quick Report"
-                        description="Laporan yang dikirim untuk event yang dapat Anda akses akan tampil di sini."
+                        title="Belum ada tugas laporan"
+                        description="Tugas muncul setelah PIC menugaskan Anda pada event yang siap dilaporkan."
                     />
                 </Card>
             ) : (
                 <>
-                    <div className="grid gap-4 lg:grid-cols-2">
-                        {reports.data.map((report) => (
-                            <Card key={report.id} className="overflow-hidden">
-                                {report.photo_url && (
-                                    <img
-                                        src={report.photo_url}
-                                        alt={`Bukti foto: ${report.title}`}
-                                        className="h-56 w-full bg-page object-cover"
-                                        loading="lazy"
-                                    />
-                                )}
-                                <div className="space-y-2 p-5">
-                                    <div className="flex flex-wrap items-start justify-between gap-2">
-                                        <h2 className="font-semibold text-text">
-                                            {report.title}
-                                        </h2>
-                                        <time className="text-xs text-muted">
-                                            {formatDateTime(report.created_at)}
-                                        </time>
-                                    </div>
-                                    <p className="text-sm text-text">
-                                        {report.body || 'Tidak ada catatan tambahan.'}
+                    <div className="grid gap-3 md:grid-cols-2">
+                        {tasks.map((task) => (
+                            <Card
+                                key={task.id}
+                                className="flex items-center justify-between gap-4 p-4"
+                            >
+                                <div className="min-w-0">
+                                    <p className="truncate font-medium text-text">
+                                        {task.event_name}
                                     </p>
-                                    <div className="border-t border-border pt-2 text-xs text-muted">
-                                        <span className="font-medium text-text">
-                                            {report.event ?? 'Event'}
-                                        </span>
-                                        {report.event_date && ` · ${report.event_date}`}
-                                        {report.user && ` · ${report.user}`}
-                                    </div>
+                                    <p className="text-xs text-muted">
+                                        {formatDate(task.activity_date ?? task.event_date)}
+                                        {task.submitted_at
+                                            ? ` · Dikirim ${formatDateTime(task.submitted_at)}`
+                                            : ''}
+                                    </p>
+                                </div>
+                                <div className="flex shrink-0 items-center gap-2">
+                                    <Badge
+                                        variant={
+                                            task.status === 'submitted' ? 'success' : 'warning'
+                                        }
+                                    >
+                                        {task.status_label}
+                                    </Badge>
+                                    {task.status === 'pending' && canCreate && (
+                                        <Link
+                                            href={route('quick-reports.create', {
+                                                event: task.id,
+                                            })}
+                                        >
+                                            <Button size="sm">Isi</Button>
+                                        </Link>
+                                    )}
+                                    {task.status === 'submitted' && task.report_id && (
+                                        <Link
+                                            href={route('quick-reports.show', task.report_id)}
+                                        >
+                                            <Button size="sm" variant="outline">
+                                                Lihat detail
+                                            </Button>
+                                        </Link>
+                                    )}
                                 </div>
                             </Card>
                         ))}
                     </div>
-                    <Pagination paginator={reports} />
                 </>
             )}
-
-            <Modal
-                open={createOpen}
-                onClose={() => setCreateOpen(false)}
-                size="lg"
-                title="Buat Quick Report"
-                description="Kirim catatan singkat kegiatan lapangan beserta foto."
-                footer={
-                    <>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setCreateOpen(false)}
-                        >
-                            Batal
-                        </Button>
-                        <Button
-                            type="submit"
-                            form="quick-report-create-form"
-                            variant="primary"
-                            size="sm"
-                            disabled={form.processing || events.length === 0}
-                        >
-                            {form.processing ? 'Mengirim…' : 'Kirim'}
-                        </Button>
-                    </>
-                }
-            >
-                <form id="quick-report-create-form" onSubmit={submitCreate}>
-                    <QuickReportForm form={form} events={events} />
-                </form>
-            </Modal>
         </AppLayout>
     );
 }

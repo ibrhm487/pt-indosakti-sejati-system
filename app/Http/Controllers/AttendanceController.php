@@ -4,14 +4,21 @@ namespace App\Http\Controllers;
 
 use App\Models\Attendance;
 use App\Models\Event;
+use App\Models\StockRequest;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\PayrollService;
 use App\Support\EventAccess;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use RuntimeException;
+use Throwable;
 
 class AttendanceController extends Controller
 {
@@ -19,11 +26,17 @@ class AttendanceController extends Controller
     {
         $user = $request->user();
         $canManage = $user->hasPermission('attendance.manage');
-        $query = Attendance::query()->with(['event:id,event_name,event_date', 'user:id,name']);
+        $query = Attendance::query()
+            ->with(['event:id,event_name,event_date', 'user:id,name'])
+            ->withCount([
+                'media as pre_departure_photos_count' => fn (Builder $media) => $media
+                    ->where('stage', 'pre_departure')
+                    ->where('type', 'photo'),
+            ]);
 
         if ($user->activeRoleSlug() === 'team' && ! $canManage) {
             $query->where('user_id', $user->id);
-        } elseif (! $user->isSystemAdmin()) {
+        } elseif (! $user->hasFullAccess()) {
             $query->whereIn('event_id', $this->visibleEvents($user)->select('id'));
         }
 
@@ -46,11 +59,20 @@ class AttendanceController extends Controller
             'duration_minutes' => $a->durationMinutes(),
             'status' => $a->status,
             'is_complete' => $a->isComplete(),
+            'pre_departure_photos_count' => (int) $a->pre_departure_photos_count,
         ]);
+        $events = $this->visibleEvents($user)
+            ->orderBy('event_name')
+            ->get(['id', 'event_name']);
+        $requestedEventId = $request->integer('event_id');
+        $initialEventId = $requestedEventId > 0
+            ? ($events->contains('id', $requestedEventId) ? $requestedEventId : null)
+            : ($events->count() === 1 ? $events->first()->id : null);
 
         return Inertia::render('Attendance/Index', [
             'attendances' => $attendances,
-            'events' => $this->visibleEvents($user)->orderBy('event_name')->get(['id', 'event_name']),
+            'events' => $events,
+            'initialEventId' => $initialEventId,
             'users' => $canManage ? User::orderBy('name')->get(['id', 'name']) : [],
             'currentUser' => ['id' => $user->id, 'name' => $user->name],
             'filters' => $request->only('event_id', 'status'),
@@ -107,12 +129,83 @@ class AttendanceController extends Controller
             return back()->with('error', 'Check-in hanya dapat dilakukan pada hari pelaksanaan event.');
         }
 
+        if (! $attendance->media()
+            ->where('stage', 'pre_departure')
+            ->where('type', 'photo')
+            ->exists()) {
+            return back()->withErrors([
+                'check_in' => 'Unggah foto dokumentasi sebelum berangkat terlebih dahulu.',
+            ]);
+        }
+
         $old = ['check_in_at' => null];
         $attendance->update(['check_in_at' => now(), 'status' => 'in_progress']);
 
         AuditLogger::log('CHECK_IN', 'attendance', $attendance, $old, ['check_in_at' => $attendance->check_in_at?->toIso8601String()]);
 
         return back()->with('success', 'Check-in dicatat.');
+    }
+
+    public function uploadPreDepartureEvidence(
+        Request $request,
+        Attendance $attendance,
+    ): RedirectResponse {
+        $this->authorizeSelfOrManage($request, $attendance);
+
+        if ($attendance->check_in_at || $attendance->check_out_at) {
+            return back()->withErrors([
+                'photos' => 'Foto sebelum berangkat tidak dapat ditambah setelah check-in.',
+            ]);
+        }
+
+        $data = $request->validate([
+            'photos' => ['required', 'array', 'min:1'],
+            'photos.*' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
+        ]);
+        $storedPaths = [];
+
+        try {
+            DB::transaction(function () use ($attendance, $data, &$storedPaths): void {
+                $lockedAttendance = Attendance::query()
+                    ->lockForUpdate()
+                    ->findOrFail($attendance->id);
+
+                if ($lockedAttendance->check_in_at || $lockedAttendance->check_out_at) {
+                    throw ValidationException::withMessages([
+                        'photos' => 'Foto sebelum berangkat tidak dapat ditambah setelah check-in.',
+                    ]);
+                }
+
+                foreach ($data['photos'] as $file) {
+                    $path = $file->store('attendance/'.$lockedAttendance->id.'/pre-departure');
+
+                    if ($path === false) {
+                        throw new RuntimeException('Attendance evidence could not be stored.');
+                    }
+
+                    $storedPaths[] = $path;
+                    $lockedAttendance->media()->create([
+                        'type' => 'photo',
+                        'stage' => 'pre_departure',
+                        'path' => $path,
+                        'mime' => $file->getMimeType() ?: null,
+                        'size' => (int) $file->getSize(),
+                        'original_name' => $file->getClientOriginalName(),
+                    ]);
+                }
+            });
+        } catch (Throwable $exception) {
+            Storage::disk('local')->delete($storedPaths);
+
+            throw $exception;
+        }
+
+        AuditLogger::log('UPLOAD_ATTENDANCE_EVIDENCE', 'attendance', $attendance, null, [
+            'stage' => 'pre_departure',
+            'photos' => count($data['photos']),
+        ]);
+
+        return back()->with('success', 'Foto sebelum berangkat berhasil diunggah.');
     }
 
     public function checkOut(Request $request, Attendance $attendance)
@@ -197,30 +290,61 @@ class AttendanceController extends Controller
     {
         $user = $request->user();
         $eventId = $request->integer('event_id');
-        $event = $eventId ? Event::find($eventId) : null;
+        $event = $eventId ? $this->visibleEvents($user)->find($eventId) : null;
 
         $attendances = Attendance::query()
             ->with(['user:id,name', 'event:id,event_name,event_date'])
             ->when($eventId, fn (Builder $q) => $q->where('event_id', $eventId))
-            ->when(! $user->isSystemAdmin(), fn (Builder $q) => $q->whereIn('event_id', $this->visibleEvents($user)->select('id')))
+            ->when(! $user->hasFullAccess(), fn (Builder $q) => $q->whereIn('event_id', $this->visibleEvents($user)->select('id')))
             ->get();
 
-        $summary = $payroll->summarize($attendances);
+        $issuedRequestsQuery = StockRequest::query()
+            ->with([
+                'teamMember:id,name',
+                'event:id,event_name,event_date',
+                'event.teamMembers.user:id,name',
+            ])
+            ->whereNotNull('issued_at')
+            ->when(
+                ! $user->hasFullAccess(),
+                fn (Builder $query) => $query->whereIn(
+                    'event_id',
+                    $this->visibleEvents($user)->select('id'),
+                ),
+            )
+            ->orderBy('issued_at')
+            ->orderBy('id');
+        $issuedRequests = $issuedRequestsQuery->get();
+        $summary = $payroll->summarize($attendances, $issuedRequests, $eventId ?: null);
+        $creditedShiftKeys = $payroll->eligibleShiftRecords($issuedRequests)
+            ->mapWithKeys(fn (array $shift) => [
+                $shift['request']->id.'|'.$shift['user_id'] => true,
+            ]);
+
+        $rows = $issuedRequests
+            ->when($eventId, fn ($requests) => $requests->where('event_id', $eventId))
+            ->flatMap(fn (StockRequest $stockRequest) => $payroll->shiftParticipants($stockRequest)
+                ->map(fn (array $participant) => [
+                    'id' => $stockRequest->id,
+                    'user_id' => $participant['user_id'],
+                    'mrv_number' => $stockRequest->mrv_number,
+                    'user' => $participant['user'],
+                    'event' => $stockRequest->event?->event_name
+                        ?? $stockRequest->activity_type
+                        ?? 'Kegiatan sampling',
+                    'event_date' => ($stockRequest->activity_date
+                        ?? $stockRequest->event?->event_date
+                        ?? $stockRequest->issued_at)?->toDateString(),
+                    'issued_at' => $stockRequest->issued_at?->toIso8601String(),
+                    'status' => $stockRequest->status->label(),
+                    'qualifies' => isset($creditedShiftKeys[$stockRequest->id.'|'.$participant['user_id']]),
+                ]))
+            ->values();
 
         return Inertia::render('Attendance/Payroll', [
             'event' => $event?->only(['id', 'event_name']),
             'events' => $this->visibleEvents($user)->orderBy('event_name')->get(['id', 'event_name']),
-            'rows' => $attendances->map(fn (Attendance $a) => [
-                'id' => $a->id,
-                'user' => $a->user?->name,
-                'event' => $a->event?->event_name,
-                'event_date' => $a->event?->event_date?->toDateString(),
-                'check_in_at' => $a->check_in_at?->toIso8601String(),
-                'check_out_at' => $a->check_out_at?->toIso8601String(),
-                'duration_minutes' => $a->durationMinutes(),
-                'status' => $a->status,
-                'qualifies' => $a->qualifiesForPay(),
-            ]),
+            'rows' => $rows,
             'summary' => $summary,
             'filters' => ['event_id' => $eventId],
         ]);
@@ -235,7 +359,7 @@ class AttendanceController extends Controller
     {
         $query = Event::query();
 
-        if ($user->isSystemAdmin() || $user->activeRoleSlug() === 'admin_event') {
+        if ($user->hasFullAccess() || $user->activeRoleSlug() === 'admin_event') {
             return $query;
         }
 

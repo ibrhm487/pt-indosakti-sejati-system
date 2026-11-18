@@ -6,18 +6,26 @@ import {
     KitchenFormFields,
     KitchenStaffOption,
 } from '@/Components/KitchenForm';
-import { Button, Input, Modal, Select, StatusBadge, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
+import { Badge, Button, Input, Modal, Select, StatusBadge, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
 import AppLayout from '@/Layouts/AppLayout';
 import { formatDate } from '@/lib/utils';
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { Plus } from 'lucide-react';
-import { FormEvent, useState } from 'react';
+import { CalendarDays, Plus } from 'lucide-react';
+import { FormEvent, useMemo, useState } from 'react';
+
+const STAGE_VARIANT: Record<string, 'outline' | 'warning' | 'info' | 'success'> = {
+    washing: 'outline',
+    cooking: 'warning',
+    ready: 'info',
+    done: 'success',
+};
 
 export default function KitchenIndex({
     requests,
     filters,
     statuses,
     canCreate,
+    reportMode = false,
     events,
     staff,
     filterEvents,
@@ -26,6 +34,7 @@ export default function KitchenIndex({
     filters: { status?: string; event_id?: string | number; date?: string };
     statuses: { value: string; label: string }[];
     canCreate: boolean;
+    reportMode?: boolean;
     events: KitchenEventOption[];
     staff: KitchenStaffOption[];
     filterEvents: { id: number; event_name: string }[];
@@ -35,6 +44,18 @@ export default function KitchenIndex({
     const [date, setDate] = useState(filters.date ?? '');
     const [open, setOpen] = useState(false);
     const form = useForm<KitchenFormData>(EMPTY_KITCHEN_FORM);
+
+    const grouped = useMemo(() => {
+        const buckets = new Map<string, any[]>();
+
+        for (const row of requests.data ?? []) {
+            const key = row.effective_date ?? row.event_date ?? 'unknown';
+            if (!buckets.has(key)) buckets.set(key, []);
+            buckets.get(key)!.push(row);
+        }
+
+        return Array.from(buckets.entries());
+    }, [requests.data]);
 
     const submit = (e: FormEvent) => {
         e.preventDefault();
@@ -72,10 +93,17 @@ export default function KitchenIndex({
     return (
         <AppLayout title="Dapur & Higienitas">
             <Head title="Dapur & Higienitas" />
-            <PageHeader title="Dapur & Higienitas" subtitle="Daftar tugas persiapan JUG dan laporan higienitas">
+            <PageHeader
+                title="Dapur & Higienitas"
+                subtitle={
+                    reportMode
+                        ? 'Laporan dokumentasi cuci JUG dan masak susu per event'
+                        : 'Daftar tugas persiapan JUG dan laporan higienitas'
+                }
+            >
                 {canCreate && (
                     <Button variant="primary" onClick={openCreate}>
-                        <Plus className="h-4 w-4" /> Tugas Kitchen
+                        <Plus className="h-4 w-4" /> {reportMode ? 'Buat Laporan' : 'Tugas Kitchen'}
                     </Button>
                 )}
             </PageHeader>
@@ -99,9 +127,9 @@ export default function KitchenIndex({
                         </Select>
                     </label>
                     <label className="flex flex-col gap-1 text-xs font-medium text-muted">
-                        Tanggal
+                        Tanggal Malam
                         <Input
-                            aria-label="Filter tanggal"
+                            aria-label="Filter tanggal malam"
                             type="date"
                             className="sm:w-44"
                             value={date}
@@ -135,42 +163,68 @@ export default function KitchenIndex({
 
             <CardTable>
                 {requests.data.length === 0 ? (
-                    <EmptyState title="Belum ada tugas kitchen" description="Buat tugas kitchen baru untuk memulai." />
+                    <EmptyState
+                        title={reportMode ? 'Belum ada laporan kitchen' : 'Belum ada tugas kitchen'}
+                        description={
+                            reportMode
+                                ? 'Buat laporan dokumentasi baru untuk memulai.'
+                                : 'Buat tugas kitchen baru untuk memulai.'
+                        }
+                    />
                 ) : (
                     <>
-                        <Table>
-                            <THead>
-                                <TR>
-                                    <TH>Event</TH>
-                                    <TH>Tanggal Event</TH>
-                                    <TH className="text-right">Qty JUG</TH>
-                                    <TH>Tanggal Persiapan</TH>
-                                    <TH>Penanggung Jawab</TH>
-                                    <TH>Status</TH>
-                                </TR>
-                            </THead>
-                            <TBody>
-                                {requests.data.map((r: any) => (
-                                    <TR key={r.id}>
-                                        <TD>
-                                            <Link
-                                                href={route('kitchen.show', r.id)}
-                                                className="font-medium text-text hover:text-primary"
-                                            >
-                                                {r.event}
-                                            </Link>
-                                        </TD>
-                                        <TD>{formatDate(r.event_date)}</TD>
-                                        <TD className="text-right">{r.jug_quantity}</TD>
-                                        <TD>{formatDate(r.preparation_date)}</TD>
-                                        <TD>{r.assignee ?? '-'}</TD>
-                                        <TD>
-                                            <StatusBadge status={r.status} label={r.status_label} />
-                                        </TD>
-                                    </TR>
-                                ))}
-                            </TBody>
-                        </Table>
+                        {grouped.map(([date, rows]) => (
+                            <div key={date} className="border-b border-border last:border-b-0">
+                                <div className="flex flex-wrap items-center justify-between gap-2 bg-page/70 px-4 py-2.5">
+                                    <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted">
+                                        <CalendarDays className="h-3.5 w-3.5" />
+                                        Malam, {date === 'unknown' ? 'Tanpa tanggal' : formatDate(date)}
+                                    </div>
+                                    <Badge variant="outline">
+                                        {rows.length} {reportMode ? 'laporan' : 'tugas'}
+                                    </Badge>
+                                </div>
+                                <Table>
+                                    <THead>
+                                        <TR>
+                                            <TH>Event</TH>
+                                            <TH>Tanggal Event</TH>
+                                            <TH className="text-right">Qty JUG</TH>
+                                            {!reportMode && <TH>Tanggal Persiapan</TH>}
+                                            {!reportMode && <TH>Penanggung Jawab</TH>}
+                                            <TH>Progres</TH>
+                                            <TH>Status</TH>
+                                        </TR>
+                                    </THead>
+                                    <TBody>
+                                        {rows.map((r: any) => (
+                                            <TR key={r.id}>
+                                                <TD>
+                                                    <Link
+                                                        href={route('kitchen.show', r.id)}
+                                                        className="font-medium text-text hover:text-primary"
+                                                    >
+                                                        {r.event}
+                                                    </Link>
+                                                </TD>
+                                                <TD>{formatDate(r.event_date)}</TD>
+                                                <TD className="text-right">{r.jug_quantity}</TD>
+                                                {!reportMode && <TD>{formatDate(r.preparation_date)}</TD>}
+                                                {!reportMode && <TD>{r.assignee ?? '-'}</TD>}
+                                                <TD>
+                                                    <Badge variant={STAGE_VARIANT[r.stage] ?? 'outline'}>
+                                                        {r.stage_label ?? '-'}
+                                                    </Badge>
+                                                </TD>
+                                                <TD>
+                                                    <StatusBadge status={r.status} label={r.status_label} />
+                                                </TD>
+                                            </TR>
+                                        ))}
+                                    </TBody>
+                                </Table>
+                            </div>
+                        ))}
                         <Pagination paginator={requests} />
                     </>
                 )}
@@ -180,8 +234,12 @@ export default function KitchenIndex({
                 open={open}
                 onClose={closeForm}
                 size="lg"
-                title="Buat Tugas Kitchen"
-                description="Buat permintaan persiapan JUG untuk sebuah event."
+                title={reportMode ? 'Buat Laporan Kitchen' : 'Buat Tugas Kitchen'}
+                description={
+                    reportMode
+                        ? 'Pilih event lalu unggah foto dokumentasi cuci JUG, masak susu, dan JUG siap.'
+                        : 'Buat permintaan persiapan JUG untuk sebuah event.'
+                }
                 footer={
                     <>
                         <Button type="button" variant="outline" size="sm" onClick={closeForm}>
@@ -194,13 +252,13 @@ export default function KitchenIndex({
                             size="sm"
                             disabled={form.processing}
                         >
-                            {form.processing ? 'Menyimpan…' : 'Simpan'}
+                            {form.processing ? 'Menyimpan…' : reportMode ? 'Buat Laporan' : 'Simpan'}
                         </Button>
                     </>
                 }
             >
                 <form id="kitchen-form" onSubmit={submitCreate}>
-                    <KitchenFormFields form={form} events={events} staff={staff} />
+                    <KitchenFormFields form={form} events={events} staff={staff} reportMode={reportMode} />
                 </form>
             </Modal>
         </AppLayout>

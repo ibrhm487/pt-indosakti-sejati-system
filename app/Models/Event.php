@@ -16,7 +16,7 @@ use Illuminate\Support\Str;
 #[Fillable([
     'event_code', 'event_name', 'fjp_id', 'brand_id', 'event_type_id', 'venue_id',
     'event_date', 'start_time', 'end_time', 'sampling_target', 'notes',
-    'jug_required', 'status', 'pic_id', 'created_by',
+    'jug_required', 'status', 'pic_id', 'created_by', 'team_group_id',
 ])]
 class Event extends Model
 {
@@ -105,6 +105,21 @@ class Event extends Model
     public function scopeForPic(Builder $query, User $user): Builder
     {
         return $query->where('pic_id', $user->id);
+    }
+
+    public static function composeName(?string $brand, ?string $eventType, ?string $venue): string
+    {
+        $brand = trim((string) $brand);
+        $type = trim((string) $eventType);
+        $venue = trim((string) $venue);
+
+        if ($brand !== '' && ($type === '' || ! Str::contains(Str::upper($type), Str::upper($brand)))) {
+            $type = trim($brand.' '.$type);
+        }
+
+        $base = $type !== '' ? $type : ($brand !== '' ? $brand : 'Event');
+
+        return $venue !== '' ? $base.' - '.$venue : $base;
     }
 
     public static function generateCode(): string

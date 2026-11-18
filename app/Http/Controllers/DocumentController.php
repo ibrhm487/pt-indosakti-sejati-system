@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ReportStatus;
 use App\Models\Document;
 use App\Models\Event;
 use App\Models\EventReport;
@@ -14,6 +15,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DocumentController extends Controller
@@ -25,7 +27,9 @@ class DocumentController extends Controller
     ];
 
     /** Categories accepted for an uploaded document. */
-    private const CATEGORIES = ['photo', 'document', 'supporting', 'evidence', 'other'];
+    private const CATEGORIES = ['photo', 'video', 'document', 'supporting', 'evidence', 'other'];
+
+    private const MIMES = 'pdf,jpg,jpeg,png,webp,doc,docx,xls,xlsx,mp4,mov,webm';
 
     public function store(Request $request)
     {
@@ -33,8 +37,21 @@ class DocumentController extends Controller
             'documentable_type' => ['required', Rule::in(array_keys(self::TYPES))],
             'documentable_id' => ['required', 'integer'],
             'category' => ['nullable', Rule::in(self::CATEGORIES)],
-            'file' => ['required', 'file', 'max:10240', 'mimes:pdf,jpg,jpeg,png,webp,doc,docx,xls,xlsx'],
+            'file' => ['nullable', 'file', 'max:102400', 'mimes:'.self::MIMES],
+            'files' => ['nullable', 'array'],
+            'files.*' => ['file', 'max:102400', 'mimes:'.self::MIMES],
         ]);
+
+        $files = array_filter([
+            ...($request->file('files', []) ?: []),
+            ...($request->file('file') ? [$request->file('file')] : []),
+        ]);
+
+        if ($files === []) {
+            throw ValidationException::withMessages([
+                'file' => 'Pilih minimal satu file untuk diunggah.',
+            ]);
+        }
 
         /** @var class-string<Model> $modelClass */
         $modelClass = self::TYPES[$data['documentable_type']];
@@ -42,21 +59,24 @@ class DocumentController extends Controller
 
         $this->authorizeUpload($request, $model);
 
-        $file = $request->file('file');
-        $path = $file->store('documents/'.$data['documentable_type']);
+        $category = $data['category'] ?? 'other';
 
-        $document = $model->documents()->create([
-            'category' => $data['category'] ?? 'other',
-            'original_name' => $file->getClientOriginalName(),
-            'path' => $path,
-            'mime' => $file->getClientMimeType(),
-            'size' => $file->getSize(),
-            'uploaded_by' => $request->user()->id,
-        ]);
+        foreach ($files as $file) {
+            $path = $file->store('documents/'.$data['documentable_type'].'/'.$model->getKey());
 
-        AuditLogger::log('UPLOAD_DOCUMENT', 'documents', $document, null, ['name' => $document->original_name]);
+            $document = $model->documents()->create([
+                'category' => $category,
+                'original_name' => $file->getClientOriginalName(),
+                'path' => $path,
+                'mime' => $file->getClientMimeType(),
+                'size' => $file->getSize(),
+                'uploaded_by' => $request->user()->id,
+            ]);
 
-        return back()->with('success', 'Dokumen diunggah.');
+            AuditLogger::log('UPLOAD_DOCUMENT', 'documents', $document, null, ['name' => $document->original_name]);
+        }
+
+        return back()->with('success', count($files).' file diunggah.');
     }
 
     public function download(Document $document): StreamedResponse
@@ -64,6 +84,24 @@ class DocumentController extends Controller
         $this->authorizeDownload(request(), $document->documentable);
 
         return $this->streamDownload($document->path, $document->original_name);
+    }
+
+    public function preview(Document $document): StreamedResponse
+    {
+        $this->authorizeDownload(request(), $document->documentable);
+
+        foreach (['local', 'public'] as $disk) {
+            if (Storage::disk($disk)->exists($document->path)) {
+                return Storage::disk($disk)->response(
+                    $document->path,
+                    $document->original_name,
+                    ['Content-Type' => $document->mime ?? 'application/octet-stream'],
+                    'inline',
+                );
+            }
+        }
+
+        abort(404);
     }
 
     public function downloadFjp(FjpAttachment $attachment): StreamedResponse
@@ -84,8 +122,8 @@ class DocumentController extends Controller
     {
         $user = request()->user();
 
-        // Only the uploader or a system administrator may delete a document.
-        abort_unless($document->uploaded_by === $user->id || $user->isSystemAdmin(), 403);
+        // Only the uploader or a full-access administrator may delete a document.
+        abort_unless($document->uploaded_by === $user->id || $user->hasFullAccess(), 403);
 
         $this->authorizeDownload(request(), $document->documentable);
 
@@ -139,6 +177,16 @@ class DocumentController extends Controller
         if ($model instanceof EventReport) {
             abort_unless(
                 $user->hasPermission('reports.view') && ReportAccess::allows($user, $model),
+                403,
+            );
+
+            // Supporting evidence belongs to the report owner and may only be
+            // attached while the report can still be edited. Full-access admins
+            // keep the ability to correct attachments at any status.
+            abort_unless(
+                $user->hasFullAccess()
+                    || ($model->submitted_by === $user->id
+                        && in_array($model->status, [ReportStatus::DRAFT, ReportStatus::REVISION], true)),
                 403,
             );
 

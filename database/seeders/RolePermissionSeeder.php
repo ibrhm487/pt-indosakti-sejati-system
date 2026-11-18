@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Enums\RoleSlug;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
@@ -33,7 +34,7 @@ class RolePermissionSeeder extends Seeder
                     [
                         'name' => $definition['name'],
                         'description' => $definition['description'],
-                        'is_system' => $slug === 'system_admin',
+                        'is_system' => in_array($slug, [RoleSlug::DEVELOPER->value, RoleSlug::SYSTEM_ADMIN->value], true),
                     ],
                 );
 
@@ -55,10 +56,13 @@ class RolePermissionSeeder extends Seeder
         $password = env('SEED_PASSWORD', 'password');
 
         $users = [
+            ['Developer', 'developer@indosakti.com', 'developer'],
             ['Admin Sistem', 'admin@indosakti.com', 'system_admin'],
             ['Permitter Satu', 'permitter@indosakti.com', 'permitter'],
             ['PIC Event', 'pic@indosakti.com', 'pic'],
             ['Tim Lapangan', 'team@indosakti.com', 'team'],
+            ['Team Leader Demo', 'tl@indosakti.com', 'team'],
+            ['SPG Demo', 'spg@indosakti.com', 'team'],
             ['Petugas Gudang', 'warehouse@indosakti.com', 'warehouse'],
             ['Petugas Kitchen', 'kitchen@indosakti.com', 'kitchen'],
             ['Admin Event', 'admin.event@indosakti.com', 'admin_event'],

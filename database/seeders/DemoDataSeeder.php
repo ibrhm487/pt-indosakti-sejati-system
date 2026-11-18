@@ -7,6 +7,7 @@ use App\Enums\KitchenStatus;
 use App\Enums\MrvStatus;
 use App\Enums\PermitStatus;
 use App\Enums\ReportStatus;
+use App\Enums\VenueStatus;
 use App\Models\Attendance;
 use App\Models\Brand;
 use App\Models\Event;
@@ -32,10 +33,15 @@ class DemoDataSeeder extends Seeder
 {
     public function run(): void
     {
-        $brands = collect(['MILO', 'KITKAT', 'DANCOW', 'BEAR BRAND'])->mapWithKeys(
-            fn ($name) => [$name => Brand::updateOrCreate(
+        $brands = collect([
+            'MILO' => 'MLO',
+            'KITKAT' => 'KKT',
+            'DANCOW' => 'DCW',
+            'BEAR BRAND' => 'BBR',
+        ])->mapWithKeys(
+            fn (string $code, string $name) => [$name => Brand::updateOrCreate(
                 ['slug' => Str::slug($name)],
-                ['name' => $name, 'is_active' => true, 'quarterly_target_cups' => 10000],
+                ['name' => $name, 'code' => $code, 'is_active' => true, 'quarterly_target_cups' => 10000],
             )]
         );
 
@@ -48,23 +54,71 @@ class DemoDataSeeder extends Seeder
             ['name' => 'Mall Activation', 'requires_school' => false, 'kitchen_default' => false],
         );
 
+        $brandSchoolTypes = collect(['MILO', 'DANCOW'])->mapWithKeys(fn (string $name) => [
+            $name => EventType::updateOrCreate(
+                ['slug' => Str::slug($name.' school sampling')],
+                [
+                    'brand_id' => $brands[$name]->id,
+                    'name' => $name.' School Sampling',
+                    'requires_school' => true,
+                    'kitchen_default' => true,
+                    'is_active' => true,
+                ],
+            ),
+        ]);
+
+        $brandInStoreTypes = collect(['MILO', 'DANCOW'])->mapWithKeys(fn (string $name) => [
+            $name => EventType::updateOrCreate(
+                ['slug' => Str::slug($name.' instore')],
+                [
+                    'brand_id' => $brands[$name]->id,
+                    'name' => $name.' InStore',
+                    'requires_school' => false,
+                    'kitchen_default' => false,
+                    'is_active' => true,
+                ],
+            ),
+        ]);
+
         $venues = collect([
             ['name' => 'SDN 01 Menteng', 'npsn' => '20101001', 'is_school' => true, 'city' => 'Jakarta Pusat'],
             ['name' => 'SDN 05 Kebayoran', 'npsn' => '20101002', 'is_school' => true, 'city' => 'Jakarta Selatan'],
             ['name' => 'Grand Indonesia Mall', 'npsn' => null, 'is_school' => false, 'city' => 'Jakarta Pusat'],
+            ['name' => 'Pasar Ciputat', 'npsn' => null, 'is_school' => false, 'city' => 'Tangerang Selatan'],
         ])->mapWithKeys(function ($data) {
-            return [$data['name'] => Venue::updateOrCreate(['name' => $data['name']], $data)];
+            return [$data['name'] => Venue::updateOrCreate(['name' => $data['name']], [
+                ...$data,
+                'status' => VenueStatus::APPROVED->value,
+                'approved_at' => now(),
+            ])];
         });
 
+        $demoTeamLeader = User::query()->where('email', 'tl@indosakti.com')->first();
+        $demoSpg = User::query()->where('email', 'spg@indosakti.com')->first();
+
         for ($i = 1; $i <= 4; $i++) {
-            Personnel::updateOrCreate(
+            $teamLeaderPersonnel = Personnel::updateOrCreate(
                 ['name' => "Team Leader $i"],
-                ['role' => 'Team Leader', 'is_active' => $i <= 2],
+                [
+                    'role' => 'Team Leader',
+                    'is_active' => $i <= 2,
+                ],
             );
-            Personnel::updateOrCreate(
+            $spgPersonnel = Personnel::updateOrCreate(
                 ['name' => "SPG $i"],
-                ['role' => 'SPG', 'is_active' => $i <= 2],
+                [
+                    'role' => 'SPG',
+                    'is_active' => $i <= 2,
+                ],
             );
+
+            if ($i === 1 && $demoTeamLeader && $teamLeaderPersonnel->user_id === null) {
+                $teamLeaderPersonnel->update(['user_id' => $demoTeamLeader->id]);
+            }
+
+            if ($i === 1 && $demoSpg && $spgPersonnel->user_id === null) {
+                $spgPersonnel->update(['user_id' => $demoSpg->id]);
+            }
         }
 
         $categories = collect(['Minuman', 'Alat Promosi'])->mapWithKeys(
@@ -101,13 +155,107 @@ class DemoDataSeeder extends Seeder
         $pic = User::where('email', 'pic@indosakti.com')->first();
         $permitter = User::where('email', 'permitter@indosakti.com')->first();
         $team = User::where('email', 'team@indosakti.com')->first();
+        $teamLeader = User::where('email', 'tl@indosakti.com')->first();
+        $spg = User::where('email', 'spg@indosakti.com')->first();
         $adminEvent = User::where('email', 'admin.event@indosakti.com')->first();
         $warehouse = User::where('email', 'warehouse@indosakti.com')->first();
 
         if ($pic && $team) {
-            $this->seedSamplingEvent($brands['MILO'], $schoolType, $venues['SDN 01 Menteng'], $pic, $permitter, $team, $adminEvent, $warehouse, $products, true);
+            $this->seedSamplingEvent($brands['MILO'], $brandSchoolTypes['MILO'], $venues['SDN 01 Menteng'], $pic, $permitter, $team, $adminEvent, $warehouse, $products, true, $teamLeader, $spg);
             $this->seedSamplingEvent($brands['KITKAT'], $schoolType, $venues['SDN 05 Kebayoran'], $pic, $permitter, $team, $adminEvent, $warehouse, $products, false);
+
+            if ($teamLeader && $spg) {
+                $this->seedInStoreEvent($brands['MILO'], $brandInStoreTypes['MILO'], $venues['Pasar Ciputat'], $pic, $permitter, $teamLeader, $spg, $adminEvent);
+            }
         }
+    }
+
+    private function seedInStoreEvent(
+        Brand $brand,
+        EventType $type,
+        Venue $venue,
+        User $pic,
+        ?User $permitter,
+        User $teamLeader,
+        User $spg,
+        ?User $adminEvent,
+    ): void {
+        $eventName = $brand->name.' InStore - '.$venue->name;
+        $eventDate = now()->addDays(10)->toDateString();
+
+        $fjp = Fjp::updateOrCreate(
+            ['event_name' => $eventName],
+            [
+                'fjp_number' => Fjp::generateNumber(),
+                'brand_id' => $brand->id,
+                'event_type_id' => $type->id,
+                'venue_id' => $venue->id,
+                'school_name' => $venue->name,
+                'city' => $venue->city,
+                'province' => $venue->province,
+                'event_date' => $eventDate,
+                'start_time' => '10:00',
+                'end_time' => '16:00',
+                'sampling_target' => 200,
+                'jug_required' => false,
+                'permit_status' => PermitStatus::APPROVED,
+                'status' => Fjp::STATUS_CONFIRM,
+                'created_by' => $permitter?->id,
+            ],
+        );
+
+        $event = Event::updateOrCreate(
+            ['event_name' => $eventName],
+            [
+                'event_code' => Event::generateCode(),
+                'fjp_id' => $fjp->id,
+                'brand_id' => $brand->id,
+                'event_type_id' => $type->id,
+                'venue_id' => $venue->id,
+                'event_date' => $eventDate,
+                'start_time' => '10:00',
+                'end_time' => '16:00',
+                'sampling_target' => 200,
+                'jug_required' => false,
+                'status' => EventStatus::READY,
+                'pic_id' => $pic->id,
+                'created_by' => $permitter?->id,
+            ],
+        );
+
+        PermitRequest::updateOrCreate(
+            ['event_id' => $event->id],
+            [
+                'permit_number' => PermitRequest::generateNumber(),
+                'fjp_id' => $fjp->id,
+                'venue_id' => $venue->id,
+                'deadline' => now()->addDays(5)->toDateString(),
+                'assigned_to' => $permitter?->id,
+                'status' => PermitStatus::APPROVED,
+                'created_by' => $permitter?->id,
+                'decided_by' => $pic->id,
+                'decided_at' => now(),
+            ],
+        );
+
+        $schedule = [
+            'schedule_date' => $eventDate,
+            'report_time' => '09:30',
+            'start_time' => '10:00',
+            'end_time' => '16:00',
+            'task' => 'Sampling dan penjualan di store',
+            'schedule_notes' => 'Bawa perlengkapan booth dan cek stok awal.',
+        ];
+
+        EventTeamMember::updateOrCreate(
+            ['event_id' => $event->id, 'user_id' => $teamLeader->id],
+            ['position' => 'Team Leader', 'status' => 'assigned', 'assigned_by' => $adminEvent?->id ?? $pic->id, ...$schedule],
+        );
+
+        EventTeamMember::updateOrCreate(
+            ['event_id' => $event->id, 'user_id' => $spg->id],
+            ['position' => 'SPG', 'status' => 'assigned', 'assigned_by' => $adminEvent?->id ?? $pic->id, ...$schedule],
+        );
     }
 
     private function seedSamplingEvent(
@@ -121,6 +269,8 @@ class DemoDataSeeder extends Seeder
         ?User $warehouse,
         $products,
         bool $jugRequired,
+        ?User $teamLeader = null,
+        ?User $spg = null,
     ): void {
         $sekolah = 300 + random_int(0, 120);
         $dapodik = $sekolah - random_int(-20, 40);
@@ -134,6 +284,8 @@ class DemoDataSeeder extends Seeder
                 'venue_id' => $venue->id,
                 'school_name' => $venue->name,
                 'npsn' => $venue->npsn,
+                'city' => $venue->city,
+                'province' => $venue->province,
                 'jumlah_siswa_sekolah' => $sekolah,
                 'jumlah_siswa_dapodik' => $dapodik,
                 'dapodik_source' => 'SIMULASI (bukan data resmi Dapodik)',
@@ -183,10 +335,33 @@ class DemoDataSeeder extends Seeder
             ],
         );
 
+        $schedule = [
+            'schedule_date' => $event->event_date,
+            'report_time' => '07:30',
+            'start_time' => '08:00',
+            'end_time' => '12:00',
+            'task' => 'Sampling dan edukasi produk',
+            'schedule_notes' => 'Lapor ke PIC di lokasi 30 menit sebelum acara.',
+        ];
+
         EventTeamMember::updateOrCreate(
             ['event_id' => $event->id, 'user_id' => $team->id],
-            ['position' => 'SPG', 'status' => 'assigned', 'assigned_by' => $pic->id],
+            ['position' => 'SPG', 'status' => 'assigned', 'assigned_by' => $pic->id, ...$schedule],
         );
+
+        if ($teamLeader) {
+            EventTeamMember::updateOrCreate(
+                ['event_id' => $event->id, 'user_id' => $teamLeader->id],
+                ['position' => 'Team Leader', 'status' => 'assigned', 'assigned_by' => $pic->id, ...$schedule],
+            );
+        }
+
+        if ($spg) {
+            EventTeamMember::updateOrCreate(
+                ['event_id' => $event->id, 'user_id' => $spg->id],
+                ['position' => 'SPG', 'status' => 'assigned', 'assigned_by' => $pic->id, ...$schedule],
+            );
+        }
 
         $stockRequest = StockRequest::updateOrCreate(
             ['event_id' => $event->id],

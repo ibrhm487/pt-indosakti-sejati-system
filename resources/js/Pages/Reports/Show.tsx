@@ -1,11 +1,21 @@
-import { PageHeader } from '@/Components/AppBits';
-import { Button, Card, CardContent, CardHeader, CardTitle, Field, Input, Modal, StatCard, StatusBadge, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
+import { ConfirmButton, PageHeader } from '@/Components/AppBits';
+import { Button, Card, CardContent, CardHeader, CardTitle, Field, Input, Modal, Select, StatCard, StatusBadge, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
 import AppLayout from '@/Layouts/AppLayout';
 import { formatDate, formatDateTime, formatNumber } from '@/lib/utils';
 import { Head } from '@inertiajs/react';
 import { router, useForm } from '@inertiajs/react';
-import { Percent, Target, TrendingUp } from 'lucide-react';
+import { Download, Percent, Target, TrendingUp, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+
+type ReportDocument = {
+    id: number;
+    category: string;
+    original_name: string;
+    mime: string | null;
+    preview_url: string;
+    download_url: string;
+    can_delete: boolean;
+};
 
 export default function ReportsShow({
     report,
@@ -13,11 +23,22 @@ export default function ReportsShow({
     can,
 }: {
     report: any;
-    documents: any[];
-    can: { verify: boolean; revision: boolean; submit: boolean };
+    documents: ReportDocument[];
+    can: { verify: boolean; revision: boolean; submit: boolean; upload: boolean };
 }) {
     const [revisionOpen, setRevisionOpen] = useState(false);
     const revisionForm = useForm({ revision_note: '' });
+    const uploadForm = useForm<{
+        documentable_type: string;
+        documentable_id: number;
+        category: string;
+        files: File[];
+    }>({
+        documentable_type: 'report',
+        documentable_id: report.id,
+        category: 'photo',
+        files: [],
+    });
 
     const submitReport = () => {
         router.post(route('reports.submit', report.id), {}, { preserveScroll: true });
@@ -34,6 +55,15 @@ export default function ReportsShow({
                 setRevisionOpen(false);
                 revisionForm.reset();
             },
+        });
+    };
+
+    const submitUpload = (e: React.FormEvent) => {
+        e.preventDefault();
+        uploadForm.post(route('documents.store'), {
+            forceFormData: true,
+            preserveScroll: true,
+            onSuccess: () => uploadForm.reset('files'),
         });
     };
 
@@ -126,28 +156,142 @@ export default function ReportsShow({
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Dokumen</CardTitle>
+                    <CardTitle>Dokumen & Foto Bukti</CardTitle>
                 </CardHeader>
                 <CardContent>
+                    {can.upload && (
+                        <form
+                            onSubmit={submitUpload}
+                            className="mb-5 grid gap-3 border-b border-border pb-5 sm:grid-cols-[1fr_180px_auto] sm:items-end"
+                        >
+                            <Field
+                                label="File (bisa pilih beberapa)"
+                                error={
+                                    uploadForm.errors.files ??
+                                    (
+                                        uploadForm.errors as Record<
+                                            string,
+                                            string | undefined
+                                        >
+                                    )['files.0']
+                                }
+                            >
+                                <Input
+                                    type="file"
+                                    multiple
+                                    accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx"
+                                    onChange={(e) =>
+                                        uploadForm.setData(
+                                            'files',
+                                            Array.from(e.target.files ?? []),
+                                        )
+                                    }
+                                />
+                                <p className="mt-1 text-xs text-muted">
+                                    Foto, video, PDF, DOC, XLS · maksimal 100 MB per file.
+                                </p>
+                            </Field>
+                            <Field label="Kategori" error={uploadForm.errors.category}>
+                                <Select
+                                    value={uploadForm.data.category}
+                                    onChange={(e) => uploadForm.setData('category', e.target.value)}
+                                >
+                                    <option value="photo">Foto bukti</option>
+                                    <option value="video">Video bukti</option>
+                                    <option value="document">Dokumen</option>
+                                    <option value="supporting">Pendukung</option>
+                                    <option value="other">Lainnya</option>
+                                </Select>
+                            </Field>
+                            <Button
+                                type="submit"
+                                variant="primary"
+                                disabled={
+                                    uploadForm.processing || uploadForm.data.files.length === 0
+                                }
+                            >
+                                {uploadForm.processing ? 'Mengunggah…' : 'Unggah'}
+                            </Button>
+                        </form>
+                    )}
                     {documents.length === 0 ? (
                         <p className="text-sm text-muted">Belum ada dokumen.</p>
                     ) : (
-                        <Table>
-                            <THead>
-                                <TR>
-                                    <TH>Nama</TH>
-                                    <TH>Kategori</TH>
-                                </TR>
-                            </THead>
-                            <TBody>
-                                {documents.map((d) => (
-                                    <TR key={d.id}>
-                                        <TD>{d.original_name}</TD>
-                                        <TD>{d.category}</TD>
+                        <div className="overflow-x-auto">
+                            <Table>
+                                <THead>
+                                    <TR>
+                                        <TH>Pratinjau</TH>
+                                        <TH>Nama</TH>
+                                        <TH>Kategori</TH>
+                                        <TH className="text-right">Aksi</TH>
                                     </TR>
-                                ))}
-                            </TBody>
-                        </Table>
+                                </THead>
+                                <TBody>
+                                    {documents.map((d) => (
+                                        <TR key={d.id}>
+                                            <TD>
+                                                {(d.mime ?? '').startsWith('image/') ? (
+                                                    <a
+                                                        href={d.preview_url}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                    >
+                                                        <img
+                                                            src={d.preview_url}
+                                                            alt={d.original_name}
+                                                            className="h-12 w-16 rounded-md border border-border object-cover"
+                                                        />
+                                                    </a>
+                                                ) : (d.mime ?? '').startsWith('video/') ? (
+                                                    <video
+                                                        src={d.preview_url}
+                                                        controls
+                                                        className="h-12 w-20 rounded-md bg-black object-contain"
+                                                    />
+                                                ) : (
+                                                    <span className="text-xs text-muted">-</span>
+                                                )}
+                                            </TD>
+                                            <TD>{d.original_name}</TD>
+                                            <TD className="capitalize">{d.category}</TD>
+                                            <TD className="text-right">
+                                                <div className="flex items-center justify-end gap-3">
+                                                    <a
+                                                        href={d.download_url}
+                                                        className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:text-primary"
+                                                    >
+                                                        <Download className="h-4 w-4" />
+                                                        Unduh
+                                                    </a>
+                                                    {d.can_delete && (
+                                                        <ConfirmButton
+                                                            title="Hapus dokumen"
+                                                            description={`Hapus dokumen "${d.original_name}"?`}
+                                                            confirmLabel="Ya, hapus"
+                                                            onConfirm={() =>
+                                                                router.delete(
+                                                                    route(
+                                                                        'documents.destroy',
+                                                                        d.id,
+                                                                    ),
+                                                                    {
+                                                                        preserveScroll: true,
+                                                                    },
+                                                                )
+                                                            }
+                                                        >
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                            Hapus
+                                                        </ConfirmButton>
+                                                    )}
+                                                </div>
+                                            </TD>
+                                        </TR>
+                                    ))}
+                                </TBody>
+                            </Table>
+                        </div>
                     )}
                 </CardContent>
             </Card>

@@ -50,13 +50,13 @@ class WarehouseRaceAndEvidenceTest extends TestCase
         $mrv = $this->createMrv($event, $product, 10, MrvStatus::PENDING);
 
         $this->actingAs($warehouse)->post(route('warehouse.mrv.approve', $mrv))->assertRedirect();
-        $this->assertSame(MrvStatus::APPROVED, $mrv->fresh()->status);
+        $this->assertSame(MrvStatus::ISSUED, $mrv->fresh()->status);
 
         $this->actingAs($warehouse)
             ->post(route('warehouse.mrv.approve', $mrv))
             ->assertSessionHasErrors('status');
 
-        $this->assertSame(MrvStatus::APPROVED, $mrv->fresh()->status);
+        $this->assertSame(MrvStatus::ISSUED, $mrv->fresh()->status);
     }
 
     public function test_issue_service_revalidates_status_inside_transaction(): void

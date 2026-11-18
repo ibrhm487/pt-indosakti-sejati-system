@@ -1,49 +1,19 @@
-import { CardTable, EmptyState, FilterCard, PageHeader, Pagination, SearchInput } from '@/Components/AppBits';
+import { EmptyState, FilterCard, PageHeader, SearchInput } from '@/Components/AppBits';
+import { EventBrandGroup, EventGroupView } from '@/Components/EventGroupView';
 import { Button, Input, Select, StatCard, StatusBadge, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
 import AppLayout from '@/Layouts/AppLayout';
-import { formatDate, formatNumber } from '@/lib/utils';
+import { formatNumber } from '@/lib/utils';
 import { Head, Link, router } from '@inertiajs/react';
 import { CalendarCheck, CircleCheck, CircleDashed, Clock, ShieldCheck } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 
-type EventReport = {
-    id: number;
-    sampling_target: number;
-    actual_sampling: number;
-    achievement: number;
-    status: string;
-    status_label: string;
-    submitted_by: string | null;
-    verified_by: string | null;
-};
-
-type EventRow = {
-    id: number;
-    event_code: string;
-    event_name: string;
-    brand: string | null;
-    venue: string | null;
-    event_date: string | null;
-    pic: string | null;
-    sampling_target: number;
-    report: EventReport | null;
-};
-
-type Paginator = {
-    data: EventRow[];
-    links: { url: string | null; label: string; active: boolean }[];
-    from: number | null;
-    to: number | null;
-    total: number;
-};
-
 export default function ReportsByEvent({
-    events,
+    eventGroups,
     filters,
     summary,
     statuses,
 }: {
-    events: Paginator;
+    eventGroups: EventBrandGroup[];
     filters: {
         search?: string;
         status?: string;
@@ -185,31 +155,30 @@ export default function ReportsByEvent({
                 </form>
             </FilterCard>
 
-            <CardTable>
-                {events.data.length === 0 ? (
+            <EventGroupView
+                groups={eventGroups}
+                empty={
                     <EmptyState
                         title="Belum ada event"
                         description="Event yang dapat Anda akses akan ditampilkan di sini."
                     />
-                ) : (
-                    <>
-                        <div className="overflow-x-auto">
-                            <Table>
-                                <THead>
-                                    <TR>
-                                        <TH>Event</TH>
-                                        <TH>Tanggal</TH>
-                                        <TH>Brand / Lokasi</TH>
-                                        <TH>PIC</TH>
-                                        <TH className="text-right">Target</TH>
-                                        <TH className="text-right">Realisasi</TH>
-                                        <TH className="text-right">Pencapaian</TH>
-                                        <TH>Status Laporan</TH>
-                                        <TH />
-                                    </TR>
-                                </THead>
-                                <TBody>
-                                    {events.data.map((event) => (
+                }
+                renderTable={(rows, type) => (
+                    <Table>
+                        <THead>
+                            <TR>
+                                <TH>Event</TH>
+                                <TH>{type.requires_school ? 'Sekolah' : 'Venue'}</TH>
+                                <TH>PIC</TH>
+                                <TH className="text-right">Target</TH>
+                                <TH className="text-right">Realisasi</TH>
+                                <TH className="text-right">Pencapaian</TH>
+                                <TH>Status Laporan</TH>
+                                <TH />
+                            </TR>
+                        </THead>
+                        <TBody>
+                            {rows.map((event) => (
                                         <TR key={event.id}>
                                             <TD>
                                                 <p className="font-medium text-text">
@@ -219,12 +188,9 @@ export default function ReportsByEvent({
                                                     {event.event_code}
                                                 </p>
                                             </TD>
-                                            <TD>{formatDate(event.event_date)}</TD>
                                             <TD>
-                                                <p>{event.brand ?? '-'}</p>
-                                                <p className="text-xs text-muted">
-                                                    {event.venue ?? '-'}
-                                                </p>
+                                                <p>{event.venue ?? '-'}</p>
+                                                <p className="text-xs text-muted">{event.venue_city ?? '-'}</p>
                                             </TD>
                                             <TD>{event.pic ?? '-'}</TD>
                                             <TD className="text-right">
@@ -265,14 +231,11 @@ export default function ReportsByEvent({
                                                 )}
                                             </TD>
                                         </TR>
-                                    ))}
-                                </TBody>
-                            </Table>
-                        </div>
-                        <Pagination paginator={events} />
-                    </>
+                            ))}
+                        </TBody>
+                    </Table>
                 )}
-            </CardTable>
+            />
         </AppLayout>
     );
 }

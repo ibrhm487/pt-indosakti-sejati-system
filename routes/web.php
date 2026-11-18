@@ -1,12 +1,16 @@
 <?php
 
-use App\Http\Controllers\ActiveRoleController;
 use App\Http\Controllers\Admin\AuditLogController;
+use App\Http\Controllers\Admin\LogViewerController;
 use App\Http\Controllers\Admin\MasterDataController;
 use App\Http\Controllers\Admin\PersonnelController;
+use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SettingController;
+use App\Http\Controllers\Admin\SystemHealthController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\BrandContextController;
+use App\Http\Controllers\BrandHubController;
 use App\Http\Controllers\DapodikController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentController;
@@ -19,9 +23,13 @@ use App\Http\Controllers\QuarterlyTargetController;
 use App\Http\Controllers\QuickReportController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\TeamController;
+use App\Http\Controllers\VenueController;
+use App\Http\Controllers\VerificationController;
 use App\Http\Controllers\Warehouse\InventoryController;
 use App\Http\Controllers\Warehouse\MrvController;
+use App\Http\Controllers\Warehouse\OmfController;
 use App\Http\Controllers\Warehouse\ProductController;
+use App\Http\Controllers\Warehouse\StockCardController;
 use App\Http\Controllers\Warehouse\StockReceiptController;
 use App\Http\Controllers\Warehouse\StockReturnController;
 use App\Http\Controllers\WorkspaceController;
@@ -30,10 +38,11 @@ use Illuminate\Support\Facades\Route;
 Route::redirect('/', '/dashboard');
 
 Route::middleware('auth')->group(function () {
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->middleware('permission:dashboard.view')->name('dashboard');
 
-    // Active role switching (workspace menu + data scoping follow this role)
-    Route::post('/active-role', [ActiveRoleController::class, 'update'])->name('role.switch');
+    // Brand context (session-backed active brand) + brand hub.
+    Route::post('/brand-context', [BrandContextController::class, 'update'])->name('brand.context');
+    Route::get('/brands/{brand}', [BrandHubController::class, 'show'])->middleware('permission:events.view')->name('brands.show');
 
     // ---------------------------------------------------------------------
     // Workspaces (UI shell)
@@ -49,6 +58,15 @@ Route::middleware('auth')->group(function () {
     Route::put('quarterly-targets/{brand}', [QuarterlyTargetController::class, 'updateForBrand'])->middleware('permission:targets.manage')->name('quarterly-targets.update');
 
     // ---------------------------------------------------------------------
+    // Venues
+    // ---------------------------------------------------------------------
+    Route::get('venues', [VenueController::class, 'index'])->middleware('permission:venues.view')->name('venues.index');
+    Route::post('venues', [VenueController::class, 'store'])->middleware('permission:venues.approve')->name('venues.store');
+    Route::post('venues/{venue}/approve', [VenueController::class, 'approve'])->middleware('permission:venues.approve')->name('venues.approve');
+    Route::post('venues/{venue}/reject', [VenueController::class, 'reject'])->middleware('permission:venues.approve')->name('venues.reject');
+    Route::get('verifications', [VerificationController::class, 'index'])->name('verifications.index');
+
+    // ---------------------------------------------------------------------
     // Events (fixed routes before parameterised ones)
     // ---------------------------------------------------------------------
     Route::get('events', [EventController::class, 'index'])->middleware('permission:events.view')->name('events.index');
@@ -57,9 +75,11 @@ Route::middleware('auth')->group(function () {
     Route::get('events/{event}', [EventController::class, 'show'])->middleware('permission:events.view')->name('events.show');
     Route::get('events/{event}/edit', [EventController::class, 'edit'])->middleware('permission:events.update')->name('events.edit');
     Route::put('events/{event}', [EventController::class, 'update'])->middleware('permission:events.update')->name('events.update');
+    Route::delete('events/{event}', [EventController::class, 'destroy'])->middleware('permission:events.delete')->name('events.destroy');
     Route::patch('events/{event}/status', [EventController::class, 'updateStatus'])->middleware('permission:events.update')->name('events.status');
     Route::post('events/{event}/close', [EventController::class, 'close'])->middleware('permission:events.close')->name('events.close');
     Route::post('events/{event}/team', [EventController::class, 'assignTeam'])->middleware('permission:events.assign_team')->name('events.team.assign');
+    Route::patch('events/{event}/team/{member}', [EventController::class, 'updateTeam'])->middleware('permission:events.assign_team')->name('events.team.update');
     Route::delete('events/{event}/team/{member}', [EventController::class, 'removeTeam'])->middleware('permission:events.assign_team')->name('events.team.remove');
 
     // ---------------------------------------------------------------------
@@ -71,17 +91,24 @@ Route::middleware('auth')->group(function () {
     // ---------------------------------------------------------------------
     // FJP
     // ---------------------------------------------------------------------
+    Route::get('fjp/team-schedule-preview', [FjpController::class, 'teamSchedulePreview'])->middleware('permission:fjp.assign_team_members')->name('fjp.team-schedule-preview');
+    Route::post('fjp/team-schedule', [FjpController::class, 'scheduleTeamGroups'])->middleware('permission:fjp.assign_team_members')->name('fjp.team-schedule');
+    Route::post('fjp/team-group', [FjpController::class, 'assignTeamGroup'])->middleware('permission:fjp.assign_team_members')->name('fjp.team-group');
+    Route::patch('fjp/team-group/{teamGroupId}', [FjpController::class, 'updateTeamScheduleGroup'])->middleware('permission:fjp.assign_team_members')->name('fjp.team-group.update');
+    Route::delete('fjp/team-group/{teamGroupId}/members/{personnel}', [FjpController::class, 'removePersonnelFromTeamScheduleGroup'])->middleware('permission:fjp.assign_team_members')->name('fjp.team-group.members.destroy');
+    Route::post('fjp/team-group/{teamGroupId}/schools', [FjpController::class, 'addSchoolToTeamScheduleGroup'])->middleware('permission:fjp.assign_team_members')->name('fjp.team-group.schools.store');
+    Route::get('fjp/team-assignment', [FjpController::class, 'teamAssignmentIndex'])->middleware('permission:fjp.view')->name('fjp.team-assignment');
     Route::get('fjp', [FjpController::class, 'index'])->middleware('permission:fjp.view')->name('fjp.index');
-    Route::get('fjp/create', [FjpController::class, 'create'])->middleware('permission:fjp.create')->name('fjp.create');
     Route::post('fjp', [FjpController::class, 'store'])->middleware('permission:fjp.create')->name('fjp.store');
+    Route::post('fjp/dapodik-schools', [FjpController::class, 'storeDapodikSchool'])->middleware('permission:fjp.create')->name('fjp.dapodik-schools.store');
+    Route::post('fjp/dapodik-schools/batch', [FjpController::class, 'storeDapodikSchools'])->middleware('permission:fjp.create')->name('fjp.dapodik-schools.batch');
     Route::get('fjp/{fjp}', [FjpController::class, 'show'])->middleware('permission:fjp.view')->name('fjp.show');
+    Route::patch('fjp/{fjp}/status', [FjpController::class, 'updateStatus'])->middleware('permission:fjp.status.update')->name('fjp.status');
     Route::get('fjp/{fjp}/edit', [FjpController::class, 'edit'])->middleware('permission:fjp.update')->name('fjp.edit');
     Route::put('fjp/{fjp}', [FjpController::class, 'update'])->middleware('permission:fjp.update')->name('fjp.update');
     Route::patch('fjp/{fjp}/inline', [FjpController::class, 'updateInline'])->middleware('permission:fjp.update')->name('fjp.inline');
     Route::delete('fjp/{fjp}', [FjpController::class, 'destroy'])->middleware('permission:fjp.delete')->name('fjp.destroy');
     Route::post('fjp/{fjp}/dapodik', [FjpController::class, 'syncDapodik'])->middleware('permission:fjp.update')->name('fjp.dapodik');
-    Route::post('fjp/{fjp}/workflow', [FjpController::class, 'workflow'])->middleware('permission:fjp.update')->name('fjp.workflow');
-    Route::post('fjp/{fjp}/create-event', [FjpController::class, 'createEvent'])->middleware('permission:events.create')->name('fjp.create-event');
     Route::post('fjp/{fjp}/attachments', [FjpController::class, 'uploadAttachment'])->middleware('permission:fjp.update')->name('fjp.attachments.store');
 
     // ---------------------------------------------------------------------
@@ -112,27 +139,42 @@ Route::middleware('auth')->group(function () {
         Route::delete('products/{product}', [ProductController::class, 'destroy'])->middleware('permission:warehouse.manage')->name('products.destroy');
 
         Route::get('inventory', [InventoryController::class, 'index'])->name('inventory.index');
+        Route::get('inventory/mios', [InventoryController::class, 'mios'])->name('inventory.mios');
         Route::get('inventory/movements', [InventoryController::class, 'movements'])->name('inventory.movements');
+        Route::get('inventory/{product}/stock-card', [StockCardController::class, 'show'])->name('inventory.stock-card');
         Route::post('inventory/adjust', [InventoryController::class, 'adjust'])->middleware('permission:warehouse.manage')->name('inventory.adjust');
 
         Route::get('receipts', [StockReceiptController::class, 'index'])->name('receipts.index');
         Route::get('receipts/create', [StockReceiptController::class, 'create'])->middleware('permission:warehouse.manage')->name('receipts.create');
         Route::post('receipts', [StockReceiptController::class, 'store'])->middleware('permission:warehouse.manage')->name('receipts.store');
+        Route::get('receipts/{slip}', [StockReceiptController::class, 'show'])->name('receipts.show');
+        Route::patch('receipts/{slip}/number', [StockReceiptController::class, 'updateNumber'])->middleware('permission:warehouse.manage')->name('receipts.number');
         Route::get('receipts/{receipt}/photo', [StockReceiptController::class, 'downloadPhoto'])->name('receipts.photo');
 
-        Route::get('mrv', [MrvController::class, 'index'])->name('mrv.index');
-        Route::get('mrv/create', [MrvController::class, 'create'])->middleware('permission:warehouse.request')->name('mrv.create');
-        Route::post('mrv', [MrvController::class, 'store'])->middleware('permission:warehouse.request')->name('mrv.store');
-        Route::get('mrv/{mrv}', [MrvController::class, 'show'])->name('mrv.show');
-        Route::post('mrv/{mrv}/approve', [MrvController::class, 'approve'])->middleware('permission:warehouse.approve')->name('mrv.approve');
-        Route::post('mrv/{mrv}/reject', [MrvController::class, 'reject'])->middleware('permission:warehouse.approve')->name('mrv.reject');
-        Route::post('mrv/{mrv}/issue', [MrvController::class, 'issue'])->middleware('permission:warehouse.issue')->name('mrv.issue');
-        Route::get('mrv/{mrv}/photo', [MrvController::class, 'downloadPhoto'])->name('mrv.photo');
+        Route::get('omf', [OmfController::class, 'index'])->name('omf.index');
+        Route::get('omf/create', [OmfController::class, 'create'])->middleware('permission:warehouse.manage')->name('omf.create');
+        Route::post('omf', [OmfController::class, 'store'])->middleware('permission:warehouse.manage')->name('omf.store');
+        Route::get('omf/{omf}', [OmfController::class, 'show'])->name('omf.show');
+        Route::patch('omf/{omf}/number', [OmfController::class, 'updateNumber'])->middleware('permission:warehouse.manage')->name('omf.number');
 
         Route::get('returns', [StockReturnController::class, 'index'])->name('returns.index');
         Route::get('returns/create', [StockReturnController::class, 'create'])->middleware('permission:warehouse.return')->name('returns.create');
         Route::post('returns', [StockReturnController::class, 'store'])->middleware('permission:warehouse.return')->name('returns.store');
         Route::get('returns/{stockReturn}/photo', [StockReturnController::class, 'downloadPhoto'])->name('returns.photo');
+    });
+
+    Route::prefix('warehouse')->name('warehouse.')->middleware('permission:warehouse.request')->group(function () {
+        Route::get('mrv', [MrvController::class, 'index'])->name('mrv.index');
+        Route::get('mrv/create', [MrvController::class, 'create'])->name('mrv.create');
+        Route::get('mrv/bulk/create', [MrvController::class, 'createBulk'])->name('mrv.bulk.create');
+        Route::post('mrv/bulk', [MrvController::class, 'storeBulk'])->name('mrv.bulk.store');
+        Route::post('mrv', [MrvController::class, 'store'])->name('mrv.store');
+        Route::get('mrv/{mrv}', [MrvController::class, 'show'])->name('mrv.show');
+        Route::patch('mrv/{mrv}/number', [MrvController::class, 'updateNumber'])->middleware('permission:warehouse.manage')->name('mrv.number');
+        Route::post('mrv/{mrv}/approve', [MrvController::class, 'approve'])->middleware('permission:warehouse.approve')->name('mrv.approve');
+        Route::post('mrv/{mrv}/reject', [MrvController::class, 'reject'])->middleware('permission:warehouse.approve')->name('mrv.reject');
+        Route::post('mrv/{mrv}/issue', [MrvController::class, 'issue'])->middleware('permission:warehouse.issue')->name('mrv.issue');
+        Route::get('mrv/{mrv}/photo', [MrvController::class, 'downloadPhoto'])->name('mrv.photo');
     });
 
     // ---------------------------------------------------------------------
@@ -144,14 +186,22 @@ Route::middleware('auth')->group(function () {
     Route::get('kitchen/{kitchen}', [KitchenController::class, 'show'])->middleware('permission:kitchen.view')->name('kitchen.show');
     Route::patch('kitchen/{kitchen}/status', [KitchenController::class, 'updateStatus'])->middleware('permission:kitchen.manage')->name('kitchen.status');
     Route::post('kitchen/{kitchen}/reports', [KitchenController::class, 'addReport'])->middleware('permission:kitchen.manage')->name('kitchen.reports.store');
-    Route::get('kitchen-reports/{report}/photo', [KitchenController::class, 'downloadPhoto'])->name('kitchen.reports.photo');
-    Route::get('kitchen-reports/{report}/washing-photo', [KitchenController::class, 'downloadWashingPhoto'])->name('kitchen.reports.washing-photo');
+    Route::post('kitchen/{kitchen}/reports/washing', [KitchenController::class, 'storeWashingReport'])->middleware('permission:kitchen.manage')->name('kitchen.reports.washing');
+    Route::post('kitchen/{kitchen}/reports/cooking', [KitchenController::class, 'storeCookingReport'])->middleware('permission:kitchen.manage')->name('kitchen.reports.cooking');
+    Route::post('kitchen/{kitchen}/reports/ready', [KitchenController::class, 'storeReadyReport'])->middleware('permission:kitchen.manage')->name('kitchen.reports.ready');
+    Route::get('kitchen-reports/{report}/photo', [KitchenController::class, 'downloadPhoto'])->middleware('permission:kitchen.view')->name('kitchen.reports.photo');
+    Route::get('kitchen-reports/{report}/washing-photo', [KitchenController::class, 'downloadWashingPhoto'])->middleware('permission:kitchen.view')->name('kitchen.reports.washing-photo');
+    Route::get('kitchen-reports/{report}/ready-photo', [KitchenController::class, 'downloadReadyPhoto'])->middleware('permission:kitchen.view')->name('kitchen.reports.ready-photo');
+    Route::get('kitchen-report-media/{media}', [KitchenController::class, 'downloadMedia'])->middleware('permission:kitchen.view')->name('kitchen.reports.media');
+    Route::delete('kitchen-report-media/{media}', [KitchenController::class, 'destroyMedia'])->middleware('permission:kitchen.manage')->name('kitchen.reports.media.destroy');
 
     // ---------------------------------------------------------------------
     // Reports
     // ---------------------------------------------------------------------
     Route::get('reports', [ReportController::class, 'index'])->middleware('permission:reports.view')->name('reports.index');
     Route::get('reports/by-event', [ReportController::class, 'byEvent'])->middleware('permission:reports.view')->name('reports.by-event');
+    Route::get('reports/daily', [ReportController::class, 'daily'])->middleware('permission:reports.view')->name('reports.daily');
+    Route::get('reports/daily/export', [ReportController::class, 'dailyExport'])->middleware('permission:reports.view')->name('reports.daily.export');
     Route::get('reports/create', [ReportController::class, 'create'])->middleware('permission:reports.create')->name('reports.create');
     Route::post('reports', [ReportController::class, 'store'])->middleware('permission:reports.create')->name('reports.store');
     Route::get('reports/{report}', [ReportController::class, 'show'])->middleware('permission:reports.view')->name('reports.show');
@@ -164,9 +214,12 @@ Route::middleware('auth')->group(function () {
     // Quick reports
     // ---------------------------------------------------------------------
     Route::get('quick-reports', [QuickReportController::class, 'index'])->middleware('permission:quick_reports.view')->name('quick-reports.index');
+    Route::get('quick-reports/history', [QuickReportController::class, 'history'])->middleware('permission:quick_reports.view')->name('quick-reports.history');
     Route::get('quick-reports/create', [QuickReportController::class, 'create'])->middleware('permission:quick_reports.create')->name('quick-reports.create');
     Route::post('quick-reports', [QuickReportController::class, 'store'])->middleware('permission:quick_reports.create')->name('quick-reports.store');
-    Route::get('quick-reports/{report}/photo', [QuickReportController::class, 'downloadPhoto'])->name('quick-reports.photo');
+    Route::get('quick-reports/{report}', [QuickReportController::class, 'show'])->middleware('permission:quick_reports.view')->name('quick-reports.show');
+    Route::get('quick-reports/{report}/photo', [QuickReportController::class, 'downloadPhoto'])->middleware('permission:quick_reports.view')->name('quick-reports.photo');
+    Route::get('quick-reports/{report}/media/{media}', [QuickReportController::class, 'downloadMedia'])->middleware('permission:quick_reports.view')->name('quick-reports.media');
 
     // ---------------------------------------------------------------------
     // Attendance
@@ -174,6 +227,7 @@ Route::middleware('auth')->group(function () {
     Route::get('attendance', [AttendanceController::class, 'index'])->middleware('permission:attendance.view')->name('attendance.index');
     Route::get('attendance/payroll', [AttendanceController::class, 'payroll'])->middleware('permission:attendance.payroll')->name('attendance.payroll');
     Route::post('attendance', [AttendanceController::class, 'store'])->middleware('permission:attendance.create')->name('attendance.store');
+    Route::post('attendance/{attendance}/evidence', [AttendanceController::class, 'uploadPreDepartureEvidence'])->middleware('permission:attendance.create')->name('attendance.evidence');
     Route::post('attendance/{attendance}/check-in', [AttendanceController::class, 'checkIn'])->middleware('permission:attendance.create')->name('attendance.check-in');
     Route::post('attendance/{attendance}/check-out', [AttendanceController::class, 'checkOut'])->middleware('permission:attendance.create')->name('attendance.check-out');
     Route::post('attendance/{attendance}/invalidate', [AttendanceController::class, 'invalidate'])->middleware('permission:attendance.manage')->name('attendance.invalidate');
@@ -188,6 +242,7 @@ Route::middleware('auth')->group(function () {
     // Documents
     // ---------------------------------------------------------------------
     Route::post('documents', [DocumentController::class, 'store'])->name('documents.store');
+    Route::get('documents/{document}/preview', [DocumentController::class, 'preview'])->name('documents.preview');
     Route::get('documents/{document}/download', [DocumentController::class, 'download'])->name('documents.download');
     Route::delete('documents/{document}', [DocumentController::class, 'destroy'])->name('documents.destroy');
     Route::get('fjp-attachments/{attachment}/download', [DocumentController::class, 'downloadFjp'])->name('fjp.attachments.download');
@@ -224,6 +279,16 @@ Route::middleware('auth')->group(function () {
         Route::put('quarterly-targets', [QuarterlyTargetController::class, 'update'])->middleware('permission:admin.settings.manage')->name('quarterly-targets.update');
 
         Route::get('audit-logs', [AuditLogController::class, 'index'])->middleware('permission:admin.audit.view')->name('audit.index');
+
+        Route::get('roles', [RoleController::class, 'index'])->middleware('permission:admin.roles.manage')->name('roles.index');
+        Route::post('roles', [RoleController::class, 'store'])->middleware('permission:admin.roles.manage')->name('roles.store');
+        Route::put('roles/{role}', [RoleController::class, 'update'])->middleware('permission:admin.roles.manage')->name('roles.update');
+        Route::delete('roles/{role}', [RoleController::class, 'destroy'])->middleware('permission:admin.roles.manage')->name('roles.destroy');
+
+        Route::get('system', [SystemHealthController::class, 'index'])->middleware('permission:admin.system.view')->name('system.index');
+
+        Route::get('logs', [LogViewerController::class, 'index'])->middleware('permission:admin.logs.view')->name('logs.index');
+        Route::get('logs/download', [LogViewerController::class, 'download'])->middleware('permission:admin.logs.view')->name('logs.download');
     });
 
     // Profile

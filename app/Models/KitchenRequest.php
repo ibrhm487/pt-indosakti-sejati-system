@@ -33,6 +33,11 @@ class KitchenRequest extends Model
         return $this->hasMany(KitchenReport::class);
     }
 
+    public function currentReport(): ?KitchenReport
+    {
+        return $this->reports()->latest('id')->first();
+    }
+
     public function assignee(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_to');

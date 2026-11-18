@@ -1,4 +1,5 @@
 import { EmptyState, FilterCard, PageHeader } from '@/Components/AppBits';
+import { EventBrandGroup, EventGroupView } from '@/Components/EventGroupView';
 import {
     Button,
     Card,
@@ -23,7 +24,6 @@ import { Head, Link, router } from '@inertiajs/react';
 import {
     Activity,
     ArrowRight,
-    CalendarCheck,
     CalendarClock,
     CalendarDays,
     CheckCircle2,
@@ -139,6 +139,7 @@ const STAT_ORDER = [
 ];
 
 const ROLE_LABELS: Record<string, string> = {
+    developer: 'Developer',
     system_admin: 'Admin Sistem',
     permitter: 'Permitter',
     pic: 'PIC',
@@ -149,10 +150,10 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 const COLORS = {
-    primary: '#1F3A5F',
+    primary: '#D91E2A',
     success: '#16845B',
     accent: '#D9A441',
-    border: '#E4E7EC',
+    border: '#E5E7EB',
     muted: '#667085',
 };
 
@@ -230,18 +231,26 @@ function TrendChart({ trend }: { trend: { month: string; total: number; complete
 
 export default function Dashboard({
     role,
-    stats,
-    quarterly,
-    upcomingEvents,
-    trend,
-    schoolComparison,
-    filters,
-    brands,
+    stats = {},
+    quarterly = [],
+    upcomingGroups = [],
+    trend = [],
+    schoolComparison = [],
+    filters = {},
+    brands = [],
 }: {
     role: string | null;
     stats: Record<string, number>;
-    quarterly: { brand: string; actual: number; target: number; percentage: number }[];
-    upcomingEvents: any[];
+    quarterly: {
+        brand: string;
+        actual: number;
+        target: number;
+        percentage: number;
+        actual_shifts: number;
+        target_shifts: number;
+        shift_percentage: number;
+    }[];
+    upcomingGroups: EventBrandGroup[];
     trend: { month: string; total: number; completed: number }[];
     schoolComparison: any[];
     filters: { brand_id?: number | string | null; date_from?: string | null; date_to?: string | null };
@@ -283,6 +292,8 @@ export default function Dashboard({
 
     const totalQuarterlyActual = quarterly.reduce((s, r) => s + r.actual, 0);
     const totalQuarterlyTarget = quarterly.reduce((s, r) => s + r.target, 0);
+    const totalQuarterlyActualShifts = quarterly.reduce((s, r) => s + r.actual_shifts, 0);
+    const totalQuarterlyTargetShifts = quarterly.reduce((s, r) => s + r.target_shifts, 0);
     const totalQuarterlyPct =
         totalQuarterlyTarget > 0
             ? Math.round((totalQuarterlyActual / totalQuarterlyTarget) * 100)
@@ -388,6 +399,9 @@ export default function Dashboard({
 
                 <SectionCard title="Target Kuartal per Brand">
                     <CardContent className="space-y-4">
+                        <p className="text-xs text-muted">
+                            Realisasi tercatat saat produk keluar dari gudang melalui MRV.
+                        </p>
                         {quarterly.length === 0 && (
                             <EmptyState
                                 title="Belum ada target"
@@ -405,7 +419,10 @@ export default function Dashboard({
                                     </span>
                                 </div>
                                 <div className="mt-1 font-mono text-sm text-muted">
-                                    {formatNumber(totalQuarterlyActual)} / {formatNumber(totalQuarterlyTarget)} cup
+                                    {formatNumber(totalQuarterlyActual)} / {formatNumber(totalQuarterlyTarget)} cups
+                                    <span className="ml-3 text-xs">
+                                        {formatNumber(totalQuarterlyActualShifts)} / {formatNumber(totalQuarterlyTargetShifts)} shift
+                                    </span>
                                 </div>
                             </div>
                         )}
@@ -417,6 +434,10 @@ export default function Dashboard({
                                         {formatNumber(row.actual)} / {formatNumber(row.target)}
                                         <span className="ml-1.5 tabular-nums font-semibold text-text">
                                             {row.percentage}%
+                                        </span>
+                                        <span className="ml-2">
+                                            · {formatNumber(row.actual_shifts)} / {formatNumber(row.target_shifts)} shift
+                                            {row.target_shifts > 0 ? ` (${row.shift_percentage}%)` : ''}
                                         </span>
                                     </span>
                                 </div>
@@ -455,54 +476,38 @@ export default function Dashboard({
                 }
             >
                 <CardContent className="p-0">
-                    {upcomingEvents.length === 0 ? (
+                    {upcomingGroups.length === 0 ? (
                         <EmptyState
                             title="Tidak ada event mendatang"
                             description="Event yang akan datang akan tampil di sini."
                         />
                     ) : (
-                        <Table>
-                            <THead>
-                                <TR>
-                                    <TH>Event</TH>
-                                    <TH>Tanggal</TH>
-                                    <TH>Status</TH>
-                                </TR>
-                            </THead>
-                            <TBody>
-                                {upcomingEvents.map((event) => (
-                                    <TR key={event.id}>
-                                        <TD>
-                                            <Link
-                                                href={route('events.show', event.id)}
-                                                className="font-medium text-text hover:text-primary"
-                                            >
-                                                {event.event_name}
-                                            </Link>
-                                            <p className="text-xs text-muted">
-                                                {event.brand} · {event.venue}
-                                            </p>
-                                        </TD>
-                                        <TD className="whitespace-nowrap">
-                                            <span className="inline-flex items-center gap-1.5 text-muted">
-                                                <CalendarCheck className="h-3.5 w-3.5" />
-                                                {formatDate(event.event_date)}
-                                            </span>
-                                        </TD>
-                                        <TD>
-                                            <StatusBadge status={event.status} label={event.status_label} />
-                                        </TD>
-                                    </TR>
-                                ))}
-                            </TBody>
-                        </Table>
+                        <EventGroupView
+                            groups={upcomingGroups}
+                            compact
+                            renderTable={(rows) => (
+                                <Table>
+                                    <THead><TR><TH>Event</TH><TH>Lokasi</TH><TH>Status</TH></TR></THead>
+                                    <TBody>
+                                        {rows.map((event) => (
+                                            <TR key={event.id}>
+                                                <TD><Link href={route('events.show', event.id)} className="font-medium text-text hover:text-primary">{event.event_name}</Link></TD>
+                                                <TD>{event.venue ?? '-'}</TD>
+                                                <TD><StatusBadge status={event.status} label={event.status_label} /></TD>
+                                            </TR>
+                                        ))}
+                                    </TBody>
+                                </Table>
+                            )}
+                        />
                     )}
                 </CardContent>
             </SectionCard>
 
             {(schoolComparison.length > 0 ||
                 role === 'permitter' ||
-                role === 'system_admin') && (
+                role === 'system_admin' ||
+                role === 'developer') && (
                 <Card className="mt-6">
                     <CardHeader>
                         <CardTitle className="inline-flex items-center gap-2">

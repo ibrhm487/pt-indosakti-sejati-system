@@ -3,7 +3,10 @@
 namespace Tests\Feature;
 
 use App\Enums\EventStatus;
+use App\Enums\ReportStatus;
 use App\Models\Event;
+use App\Models\EventReport;
+use App\Models\EventTeamMember;
 use App\Models\User;
 use Database\Seeders\DemoDataSeeder;
 use Database\Seeders\RolePermissionSeeder;
@@ -65,6 +68,67 @@ class DocumentControllerTest extends TestCase
             'category' => 'photo',
             'uploaded_by' => $pic->id,
         ]);
+    }
+
+    public function test_user_can_upload_multiple_photo_and_video_files_at_once(): void
+    {
+        $this->seedWorkspaceData();
+        Storage::fake('local');
+        $pic = User::where('email', 'pic@indosakti.com')->firstOrFail();
+        $event = Event::where('pic_id', $pic->id)->firstOrFail();
+
+        $this->actingAs($pic)
+            ->post(route('documents.store'), [
+                'documentable_type' => 'event',
+                'documentable_id' => $event->id,
+                'category' => 'video',
+                'files' => [
+                    UploadedFile::fake()->image('foto-1.jpg'),
+                    UploadedFile::fake()->image('foto-2.jpg'),
+                    UploadedFile::fake()->create('kegiatan.mp4', 2048, 'video/mp4'),
+                ],
+            ])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $documents = $event->documents()->latest('id')->take(3)->get();
+
+        $this->assertCount(3, $documents);
+        $this->assertSame(1, $documents->filter(
+            fn ($document) => str_ends_with($document->original_name, '.mp4'),
+        )->count());
+        $this->assertSame('video', $documents->first()->category);
+
+        foreach ($documents as $document) {
+            Storage::disk('local')->assertExists($document->path);
+        }
+    }
+
+    public function test_document_preview_is_served_inline(): void
+    {
+        $this->seedWorkspaceData();
+        Storage::fake('local');
+        $pic = User::where('email', 'pic@indosakti.com')->firstOrFail();
+        $event = Event::where('pic_id', $pic->id)->firstOrFail();
+
+        $this->actingAs($pic)
+            ->post(route('documents.store'), [
+                'documentable_type' => 'event',
+                'documentable_id' => $event->id,
+                'category' => 'photo',
+                'file' => UploadedFile::fake()->image('bukti.jpg'),
+            ]);
+
+        $document = $event->documents()->latest('id')->firstOrFail();
+
+        $response = $this->actingAs($pic)->get(route('documents.preview', $document));
+
+        $response->assertOk();
+        $response->assertHeader('content-type', 'image/jpeg');
+        $this->assertStringContainsString(
+            'inline',
+            (string) $response->headers->get('content-disposition'),
+        );
     }
 
     public function test_uploaded_documents_are_stored_on_the_private_disk_not_public(): void
@@ -200,6 +264,80 @@ class DocumentControllerTest extends TestCase
         $this->assertSame('isi-file-lama', Storage::disk('public')->get('documents/event/legacy.pdf'), 'File sumber tidak boleh dihapus oleh command.');
     }
 
+    public function test_report_owner_can_upload_evidence_to_a_draft_report(): void
+    {
+        $this->seedWorkspaceData();
+        Storage::fake('local');
+        $team = User::where('email', 'team@indosakti.com')->firstOrFail();
+        $pic = User::where('email', 'pic@indosakti.com')->firstOrFail();
+        $event = $this->createEvent($pic);
+        EventTeamMember::create(['event_id' => $event->id, 'user_id' => $team->id]);
+        $report = $this->createReport($event, $team, ReportStatus::DRAFT);
+
+        $this->actingAs($team)
+            ->post(route('documents.store'), [
+                'documentable_type' => 'report',
+                'documentable_id' => $report->id,
+                'category' => 'photo',
+                'file' => UploadedFile::fake()->image('aktivitas.jpg'),
+            ])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $document = $report->documents()->latest('id')->firstOrFail();
+        Storage::disk('local')->assertExists($document->path);
+        $this->assertDatabaseHas('documents', [
+            'documentable_type' => EventReport::class,
+            'documentable_id' => $report->id,
+            'category' => 'photo',
+            'uploaded_by' => $team->id,
+        ]);
+    }
+
+    public function test_team_member_cannot_upload_evidence_to_another_users_report(): void
+    {
+        $this->seedWorkspaceData();
+        Storage::fake('local');
+        $team = User::where('email', 'team@indosakti.com')->firstOrFail();
+        $pic = User::where('email', 'pic@indosakti.com')->firstOrFail();
+        $event = $this->createEvent($pic);
+        EventTeamMember::create(['event_id' => $event->id, 'user_id' => $team->id]);
+        $report = $this->createReport($event, $pic, ReportStatus::DRAFT);
+
+        $this->actingAs($team)
+            ->post(route('documents.store'), [
+                'documentable_type' => 'report',
+                'documentable_id' => $report->id,
+                'category' => 'photo',
+                'file' => UploadedFile::fake()->image('aktivitas.jpg'),
+            ])
+            ->assertForbidden();
+
+        $this->assertSame(0, $report->documents()->count());
+    }
+
+    public function test_report_owner_cannot_upload_evidence_after_submission(): void
+    {
+        $this->seedWorkspaceData();
+        Storage::fake('local');
+        $team = User::where('email', 'team@indosakti.com')->firstOrFail();
+        $pic = User::where('email', 'pic@indosakti.com')->firstOrFail();
+        $event = $this->createEvent($pic);
+        EventTeamMember::create(['event_id' => $event->id, 'user_id' => $team->id]);
+        $report = $this->createReport($event, $team, ReportStatus::SUBMITTED);
+
+        $this->actingAs($team)
+            ->post(route('documents.store'), [
+                'documentable_type' => 'report',
+                'documentable_id' => $report->id,
+                'category' => 'photo',
+                'file' => UploadedFile::fake()->image('aktivitas.jpg'),
+            ])
+            ->assertForbidden();
+
+        $this->assertSame(0, $report->documents()->count());
+    }
+
     private function seedWorkspaceData(): void
     {
         $this->seed(RolePermissionSeeder::class);
@@ -214,5 +352,16 @@ class DocumentControllerTest extends TestCase
             'status' => EventStatus::READY,
             'pic_id' => $pic->id,
         ], $overrides));
+    }
+
+    private function createReport(Event $event, User $submitter, ReportStatus $status): EventReport
+    {
+        return EventReport::create([
+            'event_id' => $event->id,
+            'sampling_target' => 100,
+            'actual_sampling' => 80,
+            'status' => $status,
+            'submitted_by' => $submitter->id,
+        ]);
     }
 }

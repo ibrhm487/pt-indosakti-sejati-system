@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\VenueStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Brand;
 use App\Models\EventType;
@@ -33,6 +34,7 @@ class MasterDataController extends Controller
                 'model' => EventType::class,
                 'slug' => true,
                 'rules' => [
+                    'brand_id' => ['nullable', 'exists:brands,id'],
                     'name' => ['required', 'string', 'max:255'],
                     'requires_school' => ['boolean'],
                     'kitchen_default' => ['boolean'],
@@ -66,7 +68,7 @@ class MasterDataController extends Controller
     {
         return Inertia::render('Admin/MasterData/Index', [
             'brands' => Brand::orderBy('name')->get(),
-            'eventTypes' => EventType::orderBy('name')->get(),
+            'eventTypes' => EventType::with('brand:id,name')->orderBy('name')->get(),
             'venues' => Venue::orderBy('name')->get(),
             'categories' => ProductCategory::orderBy('name')->get(),
         ]);
@@ -79,6 +81,12 @@ class MasterDataController extends Controller
 
         if ($config['slug']) {
             $data['slug'] = $this->uniqueSlug($config['model'], $data['name']);
+        }
+
+        if ($config['model'] === Venue::class) {
+            $data['status'] = VenueStatus::APPROVED->value;
+            $data['approved_by'] = $request->user()->id;
+            $data['approved_at'] = now();
         }
 
         $record = $config['model']::create($data);

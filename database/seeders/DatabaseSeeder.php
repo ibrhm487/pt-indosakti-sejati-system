@@ -11,6 +11,12 @@ class DatabaseSeeder extends Seeder
         $this->call([
             RolePermissionSeeder::class,
             DemoDataSeeder::class,
+            WarehouseRealDataSeeder::class,
+            RealSchoolFjpSeeder::class,
+            TeamAccountSeeder::class,
+            TeamSimulationSeeder::class,
+            PayrollSimulationSeeder::class,
+            DailyOutputSimulationSeeder::class,
         ]);
     }
 }

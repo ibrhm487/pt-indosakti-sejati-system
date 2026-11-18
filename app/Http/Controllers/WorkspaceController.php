@@ -29,7 +29,7 @@ class WorkspaceController extends Controller
 
     public function pic(): RedirectResponse
     {
-        return redirect()->route('events.index');
+        return redirect()->route('fjp.index');
     }
 
     public function admin(): RedirectResponse

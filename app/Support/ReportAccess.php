@@ -13,7 +13,7 @@ class ReportAccess
 {
     public static function allows(User $user, EventReport $report): bool
     {
-        if ($user->isSystemAdmin() || $user->activeRoleSlug() === 'admin_event') {
+        if ($user->hasFullAccess() || $user->activeRoleSlug() === 'admin_event') {
             return true;
         }
 

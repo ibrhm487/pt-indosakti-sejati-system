@@ -14,14 +14,27 @@ use Illuminate\Support\Str;
 
 #[Fillable([
     'fjp_number', 'event_name', 'brand_id', 'event_type_id', 'venue_id',
-    'school_name', 'npsn', 'address', 'maps_url', 'jumlah_siswa_sekolah', 'jumlah_siswa_dapodik',
+    'school_name', 'npsn', 'address', 'city', 'province', 'kecamatan', 'kelurahan', 'maps_url', 'jumlah_siswa_sekolah', 'jumlah_siswa_dapodik',
     'dapodik_source', 'dapodik_synced_at', 'event_date', 'start_time', 'end_time',
-    'sampling_target', 'notes', 'jug_required', 'permit_status',
+    'sampling_target', 'notes', 'permitter_total_outlet_canteen_sell_drink',
+    'permitter_quantity_with_milo', 'permitter_status', 'permitter_quantity_without_milo',
+    'team_sampling_quantity_with_milo', 'team_sampling_quantity_without_milo',
+    'jug_required', 'permit_status', 'team_group_id', 'team_group_label',
     'rejection_reason', 'cancellation_reason', 'status', 'created_by', 'permit_id',
 ])]
 class Fjp extends Model
 {
     use SoftDeletes;
+
+    public const STATUS_PLAN = 'plan';
+
+    public const STATUS_CONFIRM = 'confirm';
+
+    public const STATUS_CANCEL = 'cancel';
+
+    public const STATUS_RESCHEDULE = 'reschedule';
+
+    public const STATUS_DONE = 'done';
 
     protected $table = 'fjp';
 
@@ -34,6 +47,11 @@ class Fjp extends Model
             'jumlah_siswa_sekolah' => 'integer',
             'jumlah_siswa_dapodik' => 'integer',
             'sampling_target' => 'integer',
+            'permitter_total_outlet_canteen_sell_drink' => 'integer',
+            'permitter_quantity_with_milo' => 'integer',
+            'permitter_quantity_without_milo' => 'integer',
+            'team_sampling_quantity_with_milo' => 'integer',
+            'team_sampling_quantity_without_milo' => 'integer',
             'permit_status' => PermitStatus::class,
         ];
     }

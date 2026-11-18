@@ -4,10 +4,14 @@ namespace Tests\Feature;
 
 use App\Enums\EventStatus;
 use App\Enums\ReportStatus;
+use App\Enums\StockMovementType;
 use App\Models\Brand;
 use App\Models\Event;
 use App\Models\EventReport;
+use App\Models\Product;
 use App\Models\QuarterlyTarget;
+use App\Models\StockMovement;
+use App\Models\StockRequest;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -30,6 +34,7 @@ class QuarterlyTargetControllerTest extends TestCase
                 'year' => 2026,
                 'quarter' => 2,
                 'target_cups' => 8500,
+                'target_shifts' => 34,
             ]);
 
         $response->assertRedirect(route('quarterly-targets.index', ['year' => 2026]));
@@ -39,6 +44,7 @@ class QuarterlyTargetControllerTest extends TestCase
             'quarter' => 2,
             'start_month' => 4,
             'target_cups' => 8500,
+            'target_shifts' => 34,
         ]);
 
         $this->actingAs($permitter)
@@ -63,6 +69,7 @@ class QuarterlyTargetControllerTest extends TestCase
             'year' => 2026,
             'quarter' => 2,
             'target_cups' => 9000,
+            'target_shifts' => 34,
         ]);
     }
 
@@ -73,10 +80,24 @@ class QuarterlyTargetControllerTest extends TestCase
         $brand = $this->createBrand();
         $event = $this->createEvent($brand, $permitter);
         $team = User::where('email', 'team@indosakti.com')->firstOrFail();
+        $product = Product::create([
+            'name' => 'Test product',
+            'sku' => 'TEST-QUARTER-TARGET',
+            'unit' => 'cups',
+            'is_active' => true,
+        ]);
 
         $this->createReport($event, $team, $permitter, 175, ReportStatus::VERIFIED, '2026-04-10');
         $this->createReport($event, $team, $permitter, 260, ReportStatus::VERIFIED, '2026-06-20');
         $this->createReport($event, $team, $permitter, 999, ReportStatus::SUBMITTED, '2026-06-25');
+
+        $this->travelTo('2026-04-10 12:00:00');
+        $firstMrv = $this->createIssuedMrv($brand, 'MRV-QUARTER-TARGET-001');
+        $this->createStockOut($firstMrv, $product, 120);
+        $this->createStockOut($firstMrv, $product, 5);
+        $secondMrv = $this->createIssuedMrv($brand, 'MRV-QUARTER-TARGET-002');
+        $this->createStockOut($secondMrv, $product, 135);
+        $this->travelBack();
 
         $response = $this->actingAs($permitter)
             ->get(route('quarterly-targets.index', ['year' => 2026, 'quarter' => 2]));
@@ -92,6 +113,9 @@ class QuarterlyTargetControllerTest extends TestCase
                 ->where('brands.0.name', 'Test Brand')
                 ->where('brands.0.target_cups', 1000)
                 ->where('brands.0.actual_cups', 260)
+                ->where('brands.0.target_shifts', 0)
+                ->where('brands.0.actual_shifts', 2)
+                ->where('brands.0.shift_percentage', 0)
                 ->where('brands.0.percentage', fn ($p) => $p == 26.0)
                 ->where('brands.0.is_configured', false)
             );
@@ -101,6 +125,7 @@ class QuarterlyTargetControllerTest extends TestCase
                 'year' => 2026,
                 'quarter' => 2,
                 'target_cups' => 1300,
+                'target_shifts' => 34,
             ]);
 
         $this->actingAs($permitter)
@@ -108,6 +133,9 @@ class QuarterlyTargetControllerTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->where('brands.0.target_cups', 1300)
                 ->where('brands.0.percentage', fn ($p) => $p == 20.0)
+                ->where('brands.0.target_shifts', 34)
+                ->where('brands.0.actual_shifts', 2)
+                ->where('brands.0.shift_percentage', fn ($p) => $p == 5.9)
                 ->where('brands.0.is_configured', true)
             );
     }
@@ -143,6 +171,7 @@ class QuarterlyTargetControllerTest extends TestCase
                 ->where('targets.2.quarter', 3)
                 ->where('targets.2.start_month', 7)
                 ->where('targets.2.target_cups', 5400)
+                ->where('targets.2.target_shifts', 0)
                 ->where('targets.3.quarter', 4)
             );
     }
@@ -159,10 +188,10 @@ class QuarterlyTargetControllerTest extends TestCase
                 'brand_id' => $brand->id,
                 'year' => 2026,
                 'targets' => [
-                    ['quarter' => 1, 'start_month' => 1, 'target_cups' => 100],
-                    ['quarter' => 2, 'start_month' => 4, 'target_cups' => 200],
-                    ['quarter' => 3, 'start_month' => 7, 'target_cups' => 300],
-                    ['quarter' => 4, 'start_month' => 10, 'target_cups' => 400],
+                    ['quarter' => 1, 'start_month' => 1, 'target_cups' => 100, 'target_shifts' => 1],
+                    ['quarter' => 2, 'start_month' => 4, 'target_cups' => 200, 'target_shifts' => 2],
+                    ['quarter' => 3, 'start_month' => 7, 'target_cups' => 300, 'target_shifts' => 3],
+                    ['quarter' => 4, 'start_month' => 10, 'target_cups' => 400, 'target_shifts' => 4],
                 ],
             ]);
 
@@ -174,6 +203,7 @@ class QuarterlyTargetControllerTest extends TestCase
             'quarter' => 2,
             'start_month' => 4,
             'target_cups' => 200,
+            'target_shifts' => 2,
         ]);
     }
 
@@ -199,10 +229,10 @@ class QuarterlyTargetControllerTest extends TestCase
                 'brand_id' => $brand->id,
                 'year' => 2026,
                 'targets' => [
-                    ['quarter' => 1, 'start_month' => 1, 'target_cups' => -1],
+                    ['quarter' => 1, 'start_month' => 1, 'target_cups' => 100, 'target_shifts' => -1],
                 ],
             ])
-            ->assertSessionHasErrors('targets.0.target_cups');
+            ->assertSessionHasErrors('targets.0.target_shifts');
 
         $this->assertDatabaseMissing('quarterly_targets', [
             'brand_id' => $brand->id,
@@ -248,6 +278,28 @@ class QuarterlyTargetControllerTest extends TestCase
             'submitted_by' => $team->id,
             'verified_by' => $verifier->id,
             'verified_at' => $verifiedAt,
+        ]);
+    }
+
+    private function createIssuedMrv(Brand $brand, string $mrvNumber): StockRequest
+    {
+        return StockRequest::create([
+            'mrv_number' => $mrvNumber,
+            'brand_name' => $brand->name,
+            'type' => 'issue',
+            'status' => 'issued',
+            'activity_date' => '2026-04-10',
+        ]);
+    }
+
+    private function createStockOut(StockRequest $mrv, Product $product, int $quantity): StockMovement
+    {
+        return StockMovement::create([
+            'product_id' => $product->id,
+            'type' => StockMovementType::STOCK_OUT,
+            'quantity' => $quantity,
+            'reference_type' => $mrv->getMorphClass(),
+            'reference_id' => $mrv->id,
         ]);
     }
 }

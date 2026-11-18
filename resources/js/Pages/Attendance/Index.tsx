@@ -38,6 +38,7 @@ export default function AttendanceIndex({
     users,
     currentUser,
     filters,
+    initialEventId,
     can,
 }: {
     attendances: any;
@@ -45,6 +46,7 @@ export default function AttendanceIndex({
     users: { id: number; name: string }[];
     currentUser: { id: number; name: string };
     filters: { event_id?: string | number; status?: string };
+    initialEventId?: number | null;
     can: { create: boolean; manage: boolean; payroll: boolean };
 }) {
     const [eventId, setEventId] = useState(filters.event_id ?? '');
@@ -76,9 +78,30 @@ export default function AttendanceIndex({
         router.post(route('attendance.check-out', id), {}, { preserveScroll: true });
     };
 
+    const uploadPreDeparturePhotos = (
+        id: number,
+        photos: File[],
+        input: HTMLInputElement,
+    ) => {
+        if (photos.length === 0) return;
+
+        router.post(
+            route('attendance.evidence', id),
+            { photos },
+            {
+                forceFormData: true,
+                preserveScroll: true,
+                onSuccess: () => {
+                    input.value = '';
+                },
+            },
+        );
+    };
+
     const openCreate = () => {
         createForm.setData({
             ...EMPTY_ATTENDANCE,
+            event_id: initialEventId ? String(initialEventId) : '',
             user_id: can.manage ? '' : String(currentUser.id),
         });
         createForm.clearErrors();
@@ -236,7 +259,36 @@ export default function AttendanceIndex({
                                         <TD>
                                             <div className="flex flex-wrap gap-2">
                                                 {can.create && canActOn(a) && !a.check_in_at && (
-                                                    <Button size="sm" variant="outline" onClick={() => checkIn(a.id)}>
+                                                    <div className="min-w-52 space-y-1">
+                                                        <input
+                                                            type="file"
+                                                            multiple
+                                                            accept="image/jpeg,image/png,image/webp"
+                                                            aria-label="Upload foto sebelum berangkat"
+                                                            className="block w-full text-xs text-muted file:mr-2 file:rounded-lg file:border-0 file:bg-primary/10 file:px-2 file:py-1 file:text-xs file:font-semibold file:text-primary"
+                                                            onChange={(event) =>
+                                                                uploadPreDeparturePhotos(
+                                                                    a.id,
+                                                                    Array.from(event.currentTarget.files ?? []),
+                                                                    event.currentTarget,
+                                                                )
+                                                            }
+                                                        />
+                                                        <p className="text-[11px] text-muted">
+                                                            {a.pre_departure_photos_count} foto sebelum berangkat
+                                                        </p>
+                                                    </div>
+                                                )}
+                                                {can.create && canActOn(a) && !a.check_in_at && (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        disabled={a.pre_departure_photos_count < 1}
+                                                        title={a.pre_departure_photos_count < 1
+                                                            ? 'Unggah foto sebelum berangkat terlebih dahulu'
+                                                            : undefined}
+                                                        onClick={() => checkIn(a.id)}
+                                                    >
                                                         Check-in
                                                     </Button>
                                                 )}

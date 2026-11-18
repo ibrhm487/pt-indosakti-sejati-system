@@ -31,8 +31,8 @@ enum KitchenStatus: string
     public function allowedTransitions(): array
     {
         return match ($this) {
-            self::PENDING => [self::CONFIRMED, self::CANCELLED],
-            self::CONFIRMED => [self::PREPARING, self::CANCELLED],
+            self::PENDING => [self::CONFIRMED, self::PREPARING, self::CANCELLED],
+            self::CONFIRMED => [self::PREPARING, self::READY, self::CANCELLED],
             self::PREPARING => [self::READY, self::CANCELLED],
             self::READY => [self::DISPATCHED, self::CANCELLED],
             self::NOT_REQUIRED, self::DISPATCHED, self::CANCELLED => [],

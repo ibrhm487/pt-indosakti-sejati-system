@@ -25,11 +25,15 @@ type ProductRow = {
     id: number;
     name: string;
     sku: string;
+    package_sku: string | null;
+    product_type: string | null;
     brand: string | null;
     brand_id: number | null;
     category: string | null;
     product_category_id: number | null;
     unit: string;
+    units_per_case: number | null;
+    default_lot_code: string | null;
     minimum_stock: number;
     on_hand: number;
     reserved: number;
@@ -110,7 +114,7 @@ export default function ProductsIndex({
             <FilterCard>
                 <form onSubmit={submit} className="flex flex-col gap-3 sm:flex-row">
                     <SearchInput
-                        placeholder="Cari nama atau SKU…"
+                        placeholder="Cari nama, item number, atau SKU…"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                     />
@@ -142,8 +146,23 @@ export default function ProductsIndex({
                                         <TD>
                                             <p className="font-medium text-text">{p.name}</p>
                                             <p className="text-xs text-muted">
-                                                {p.sku} · {p.brand ?? '-'}
+                                                Item {p.sku}
+                                                {p.package_sku ? ` · SKU ${p.package_sku}` : ''}
+                                                {' · '}{p.brand ?? '-'}
                                             </p>
+                                            {p.product_type && (
+                                                <p className="text-xs text-muted">
+                                                    Type {p.product_type}
+                                                </p>
+                                            )}
+                                            {p.units_per_case && (
+                                                <p className="text-xs text-muted">
+                                                    {formatNumber(p.units_per_case)} {p.unit} / case
+                                                </p>
+                                            )}
+                                            {p.default_lot_code && (
+                                                <p className="text-xs text-muted">Lot {p.default_lot_code}</p>
+                                            )}
                                         </TD>
                                         <TD>{p.category ?? '-'}</TD>
                                         <TD className="text-right">

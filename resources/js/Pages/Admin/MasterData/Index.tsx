@@ -1,5 +1,5 @@
 import { CardTable, ConfirmButton, EmptyState, ModalForm, PageHeader, Tabs } from '@/Components/AppBits';
-import { Badge, Button, Field, Input, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
+import { Badge, Button, Field, Input, Select, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
 import AppLayout from '@/Layouts/AppLayout';
 import { Head, router, useForm } from '@inertiajs/react';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
@@ -37,7 +37,7 @@ export default function AdminMasterDataIndex({
             </div>
 
             {tab === 'brands' && <BrandsSection items={brands} />}
-            {tab === 'event-types' && <EventTypesSection items={eventTypes} />}
+            {tab === 'event-types' && <EventTypesSection items={eventTypes} brands={brands} />}
             {tab === 'venues' && <VenuesSection items={venues} />}
             {tab === 'categories' && <CategoriesSection items={categories} />}
         </AppLayout>
@@ -212,12 +212,12 @@ function BrandsSection({ items }: { items: any[] }) {
     );
 }
 
-function EventTypesSection({ items }: { items: any[] }) {
+function EventTypesSection({ items, brands }: { items: any[]; brands: any[] }) {
     const [addOpen, setAddOpen] = useState(false);
     const [editing, setEditing] = useState<any | null>(null);
 
-    const addForm = useForm({ name: '', requires_school: false, kitchen_default: false, is_active: true });
-    const editForm = useForm({ name: '', requires_school: false, kitchen_default: false, is_active: true });
+    const addForm = useForm({ brand_id: '', name: '', requires_school: false, kitchen_default: false, is_active: true });
+    const editForm = useForm({ brand_id: '', name: '', requires_school: false, kitchen_default: false, is_active: true });
 
     const submitAdd = (e: React.FormEvent) => {
         e.preventDefault();
@@ -233,6 +233,7 @@ function EventTypesSection({ items }: { items: any[] }) {
     const openEdit = (t: any) => {
         setEditing(t);
         editForm.setData({
+            brand_id: t.brand_id != null ? String(t.brand_id) : '',
             name: t.name ?? '',
             requires_school: !!t.requires_school,
             kitchen_default: !!t.kitchen_default,
@@ -259,6 +260,7 @@ function EventTypesSection({ items }: { items: any[] }) {
                     <Table>
                         <THead>
                             <TR>
+                                <TH>Brand</TH>
                                 <TH>Nama</TH>
                                 <TH>Butuh Sekolah</TH>
                                 <TH>Kitchen Default</TH>
@@ -269,6 +271,7 @@ function EventTypesSection({ items }: { items: any[] }) {
                         <TBody>
                             {items.map((t: any) => (
                                 <TR key={t.id}>
+                                    <TD>{t.brand?.name ?? 'Umum'}</TD>
                                     <TD className="font-medium text-text">{t.name}</TD>
                                     <TD>{t.requires_school ? 'Ya' : 'Tidak'}</TD>
                                     <TD>{t.kitchen_default ? 'Ya' : 'Tidak'}</TD>
@@ -311,6 +314,19 @@ function EventTypesSection({ items }: { items: any[] }) {
                 submitLabel={addForm.processing ? 'Menyimpan…' : 'Tambah'}
                 submitDisabled={addForm.processing}
             >
+                <Field label="Brand" error={addForm.errors.brand_id}>
+                    <Select
+                        value={addForm.data.brand_id}
+                        onChange={(e) => addForm.setData('brand_id', e.target.value)}
+                    >
+                        <option value="">Umum (semua brand)</option>
+                        {brands.map((b: any) => (
+                            <option key={b.id} value={b.id}>
+                                {b.name}
+                            </option>
+                        ))}
+                    </Select>
+                </Field>
                 <Field label="Nama" error={addForm.errors.name}>
                     <Input value={addForm.data.name} onChange={(e) => addForm.setData('name', e.target.value)} />
                 </Field>
@@ -333,6 +349,19 @@ function EventTypesSection({ items }: { items: any[] }) {
                 submitLabel={editForm.processing ? 'Menyimpan…' : 'Simpan'}
                 submitDisabled={editForm.processing}
             >
+                <Field label="Brand" error={editForm.errors.brand_id}>
+                    <Select
+                        value={editForm.data.brand_id}
+                        onChange={(e) => editForm.setData('brand_id', e.target.value)}
+                    >
+                        <option value="">Umum (semua brand)</option>
+                        {brands.map((b: any) => (
+                            <option key={b.id} value={b.id}>
+                                {b.name}
+                            </option>
+                        ))}
+                    </Select>
+                </Field>
                 <Field label="Nama" error={editForm.errors.name}>
                     <Input value={editForm.data.name} onChange={(e) => editForm.setData('name', e.target.value)} />
                 </Field>

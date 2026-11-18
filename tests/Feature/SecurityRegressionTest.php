@@ -5,10 +5,12 @@ namespace Tests\Feature;
 use App\Enums\EventStatus;
 use App\Enums\KitchenStatus;
 use App\Enums\ReportStatus;
+use App\Enums\RoleSlug;
 use App\Models\Event;
 use App\Models\EventReport;
 use App\Models\EventTeamMember;
 use App\Models\KitchenReport;
+use App\Models\Role;
 use App\Models\User;
 use Database\Seeders\DemoDataSeeder;
 use Database\Seeders\RolePermissionSeeder;
@@ -110,7 +112,9 @@ class SecurityRegressionTest extends TestCase
     public function test_active_session_is_terminated_when_account_is_deactivated(): void
     {
         $this->seed(RolePermissionSeeder::class);
-        $user = User::factory()->create(['is_active' => true]);
+        $role = Role::where('slug', RoleSlug::SYSTEM_ADMIN->value)->firstOrFail();
+        $user = User::factory()->create(['is_active' => true, 'active_role_id' => $role->id]);
+        $user->roles()->attach($role);
 
         $this->actingAs($user)
             ->get(route('dashboard'))

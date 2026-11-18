@@ -4,9 +4,14 @@ namespace Tests\Feature;
 
 use App\Enums\EventStatus;
 use App\Enums\ReportStatus;
+use App\Enums\StockMovementType;
 use App\Models\Brand;
 use App\Models\Event;
 use App\Models\EventReport;
+use App\Models\Product;
+use App\Models\QuarterlyTarget;
+use App\Models\StockMovement;
+use App\Models\StockRequest;
 use App\Models\User;
 use Database\Seeders\DemoDataSeeder;
 use Database\Seeders\RolePermissionSeeder;
@@ -101,14 +106,14 @@ class DashboardTest extends TestCase
         $this->assertArrayHasKey('mrv_pending', $stats);
     }
 
-    public function test_school_comparison_requires_the_fjp_view_permission(): void
+    public function test_school_comparison_is_visible_to_roles_with_fjp_view_permission(): void
     {
         $this->seedWorkspaceData();
 
         $adminEvent = User::where('email', 'admin.event@indosakti.com')->firstOrFail();
         $adminEventResponse = $this->actingAs($adminEvent)->get(route('dashboard'));
         $adminEventResponse->assertOk();
-        $this->assertSame([], $adminEventResponse->inertiaProps('schoolComparison'));
+        $this->assertNotSame([], $adminEventResponse->inertiaProps('schoolComparison'));
 
         // Stop the acting-as session before switching users.
         $this->app['auth']->forgetGuards();
@@ -119,7 +124,7 @@ class DashboardTest extends TestCase
         $this->assertNotSame([], $permitterResponse->inertiaProps('schoolComparison'));
     }
 
-    public function test_quarterly_actual_counts_each_event_only_once(): void
+    public function test_quarterly_actual_uses_issued_mrv_movements_instead_of_event_reports(): void
     {
         $this->seedWorkspaceData();
         $pic = User::where('email', 'pic@indosakti.com')->firstOrFail();
@@ -132,8 +137,7 @@ class DashboardTest extends TestCase
         $event = $this->createEvent($pic, 'EVT-DASH-QUARTERLY');
         $event->update(['brand_id' => $brand->id]);
 
-        // Two verified reports for the same event inside the current quarter:
-        // the metric must count the latest one only, never the sum.
+        // Event reports are intentionally different from warehouse issues.
         EventReport::create([
             'event_id' => $event->id,
             'sampling_target' => 200,
@@ -143,6 +147,40 @@ class DashboardTest extends TestCase
             'submitted_at' => now(),
             'verified_by' => $pic->id,
             'verified_at' => now(),
+        ]);
+        QuarterlyTarget::create([
+            'brand_id' => $brand->id,
+            'year' => now()->year,
+            'quarter' => (int) ceil(now()->month / 3),
+            'start_month' => ((int) ceil(now()->month / 3) - 1) * 3 + 1,
+            'target_cups' => 1000,
+            'target_shifts' => 34,
+        ]);
+        $product = Product::create([
+            'name' => 'Product Dashboard Target',
+            'sku' => 'PRODUCT-DASHBOARD-TARGET',
+            'unit' => 'cups',
+            'is_active' => true,
+        ]);
+        $mrv = StockRequest::create([
+            'mrv_number' => 'MRV-DASHBOARD-TARGET',
+            'brand_name' => $brand->name,
+            'type' => 'issue',
+            'status' => 'issued',
+        ]);
+        StockMovement::create([
+            'product_id' => $product->id,
+            'type' => StockMovementType::STOCK_OUT,
+            'quantity' => 100,
+            'reference_type' => $mrv->getMorphClass(),
+            'reference_id' => $mrv->id,
+        ]);
+        StockMovement::create([
+            'product_id' => $product->id,
+            'type' => StockMovementType::STOCK_OUT,
+            'quantity' => 50,
+            'reference_type' => $mrv->getMorphClass(),
+            'reference_id' => $mrv->id,
         ]);
         EventReport::create([
             'event_id' => $event->id,
@@ -163,8 +201,11 @@ class DashboardTest extends TestCase
             ->firstWhere('brand', $brand->name);
 
         $this->assertNotNull($row, 'The test brand must appear in the quarterly summary.');
-        $this->assertSame(150, $row['actual'], 'Only the latest verified report per event may count.');
+        $this->assertSame(150, $row['actual'], 'Only stock quantities issued through the MRV may count.');
         $this->assertSame(1000, $row['target']);
+        $this->assertSame(1, $row['actual_shifts']);
+        $this->assertSame(34, $row['target_shifts']);
+        $this->assertSame(2.9, $row['shift_percentage']);
     }
 
     private function seedWorkspaceData(): void

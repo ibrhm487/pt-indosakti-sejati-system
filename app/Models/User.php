@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Collection;
@@ -45,6 +46,11 @@ class User extends Authenticatable
         return $this->hasMany(EventTeamMember::class);
     }
 
+    public function personnel(): HasOne
+    {
+        return $this->hasOne(Personnel::class);
+    }
+
     public function permissions(): Collection
     {
         $roleIds = $this->roles->pluck('id');
@@ -76,6 +82,19 @@ class User extends Authenticatable
     public function isSystemAdmin(): bool
     {
         return $this->hasRole(RoleSlug::SYSTEM_ADMIN);
+    }
+
+    public function isDeveloper(): bool
+    {
+        return $this->hasRole(RoleSlug::DEVELOPER);
+    }
+
+    /**
+     * Roles that bypass role-based data scoping (development and system admin).
+     */
+    public function hasFullAccess(): bool
+    {
+        return $this->isSystemAdmin() || $this->isDeveloper();
     }
 
     public function activeRoleSlug(): ?string

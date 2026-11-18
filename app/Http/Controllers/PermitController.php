@@ -57,7 +57,7 @@ class PermitController extends Controller
     {
         return [
             'events' => Event::orderBy('event_name')->get(['id', 'event_name']),
-            'venues' => Venue::orderBy('name')->get(['id', 'name']),
+            'venues' => Venue::usable()->orderBy('name')->get(['id', 'name']),
             'assignees' => User::whereHas('roles', fn ($q) => $q->whereIn('slug', ['permitter']))->get(['id', 'name']),
         ];
     }

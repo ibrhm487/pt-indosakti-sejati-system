@@ -1,42 +1,101 @@
-import { CardTable, EmptyState, PageHeader } from '@/Components/AppBits';
-import { Badge, Card, CardContent, CardHeader, CardTitle, StatCard, StatusBadge, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
+import { EmptyState, PageHeader } from '@/Components/AppBits';
+import { EventBrandGroup, EventGroupItem, EventGroupView, EventTypeGroup } from '@/Components/EventGroupView';
+import { Badge, Button, Card, CardContent, CardHeader, CardTitle, StatCard, StatusBadge, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
 import AppLayout from '@/Layouts/AppLayout';
-import { formatDate } from '@/lib/utils';
+import { formatDate, formatNumber } from '@/lib/utils';
 import { Head, Link } from '@inertiajs/react';
 import { CalendarCheck, CalendarClock, CircleCheck, ListTodo } from 'lucide-react';
 
-type TeamEventRow = {
-    id: number;
-    event_name: string;
-    event_date: string | null;
-    brand: string | null;
-    pic: string | null;
-    status: string;
-    status_label: string;
-    is_today: boolean;
-    members: { name: string; position: string | null }[];
-};
+const formatTime = (value: string | null): string | null =>
+    value ? value.slice(0, 5) : null;
 
 export default function TeamIndex({
-    events,
+    upcomingGroups,
+    pastGroups,
     teamMembers,
     activeRole,
-    canCreateReport,
     canQuickReport,
     summary,
 }: {
-    events: TeamEventRow[];
+    upcomingGroups: EventBrandGroup[];
+    pastGroups: EventBrandGroup[];
     teamMembers: { id: number; name: string; email: string }[];
     activeRole: string;
-    canCreateReport: boolean;
     canQuickReport: boolean;
-    summary: { total: number; today: number; upcoming: number; completed: number };
+    summary: {
+        total: number;
+        today: number;
+        upcoming: number;
+        completed: number;
+    };
 }) {
     const isTeam = activeRole === 'team';
     const title = isTeam ? 'Tugas Tim Hari Ini' : 'Penugasan Tim';
     const subtitle = isTeam
         ? 'Event yang ditugaskan kepada Anda, diurutkan dari yang terdekat'
         : 'Daftar event dan anggota tim yang ditugaskan';
+    const renderRows = (rows: EventGroupItem[], type: EventTypeGroup) => (
+        <Table>
+            <THead>
+                <TR>
+                    <TH>Event</TH>
+                    <TH>{type.requires_school ? 'Sekolah' : 'Venue'}</TH>
+                    <TH>Status</TH>
+                    <TH>Anggota</TH>
+                    <TH className="text-right">Aksi</TH>
+                </TR>
+            </THead>
+            <TBody>
+                {rows.map((event) => (
+                    <TR key={event.id}>
+                        <TD>
+                            <p className="font-medium text-text">
+                                {event.event_name}
+                                {event.is_today && <Badge variant="info" className="ml-2 align-middle">Hari ini</Badge>}
+                            </p>
+                            {event.team_group_count > 1 && (
+                                <p className="mt-1">
+                                    <Badge variant="outline">
+                                        Satu tim · {event.team_group_count} sekolah · target {formatNumber(event.team_group_sampling_target)} siswa
+                                    </Badge>
+                                </p>
+                            )}
+                            <p className="text-xs text-muted">{event.venue_city ?? '-'} · {event.venue ?? 'Lokasi belum diisi'}</p>
+                            <p className="text-xs text-muted">
+                                {formatTime(event.start_time) ?? '--:--'} - {formatTime(event.end_time) ?? '--:--'} · PIC: {event.pic ?? '-'}
+                            </p>
+                            {event.notes && <p className="mt-1 text-xs text-muted">Instruksi: {event.notes}</p>}
+                            {event.my_schedule && (
+                                <div className="mt-2 rounded-lg border border-border bg-page/60 px-3 py-2 text-xs">
+                                    <p className="font-medium text-text">Jadwal saya{event.my_schedule.position ? ` · ${event.my_schedule.position}` : ''}</p>
+                                    <p className="mt-0.5 text-muted">
+                                        {[formatDate(event.my_schedule.schedule_date), formatTime(event.my_schedule.report_time) ? `Kumpul ${formatTime(event.my_schedule.report_time)}` : null, `${formatTime(event.my_schedule.start_time) ?? '--:--'} - ${formatTime(event.my_schedule.end_time) ?? '--:--'}`].filter(Boolean).join(' · ')}
+                                    </p>
+                                    {event.my_schedule.task && <p className="mt-0.5 text-muted">Tugas: {event.my_schedule.task}</p>}
+                                    {event.my_schedule.schedule_notes && <p className="mt-0.5 text-muted">Catatan: {event.my_schedule.schedule_notes}</p>}
+                                </div>
+                            )}
+                        </TD>
+                        <TD>{event.venue ?? '-'}</TD>
+                        <TD><StatusBadge status={event.status} label={event.status_label} /></TD>
+                        <TD>
+                            <div className="flex flex-wrap gap-1">
+                                {event.members?.map((member: { name: string; position: string | null }, index: number) => (
+                                    <Badge key={index} variant="outline">{member.name} · {member.position}</Badge>
+                                ))}
+                            </div>
+                        </TD>
+                        <TD className="text-right">
+                            <div className="flex items-center justify-end gap-3">
+                                {isTeam && canQuickReport && <Link href={route('quick-reports.index')} className="text-sm font-medium text-primary hover:text-primary">Status Laporan</Link>}
+                                <Link href={route('events.show', event.id)} className="text-sm font-medium text-muted hover:text-text">Lihat Detail</Link>
+                            </div>
+                        </TD>
+                    </TR>
+                ))}
+            </TBody>
+        </Table>
+    );
 
     return (
         <AppLayout title={title}>
@@ -45,93 +104,14 @@ export default function TeamIndex({
 
             <div className="grid gap-6 lg:grid-cols-3">
                 <div className="lg:col-span-2">
-                    <CardTable>
-                        {events.length === 0 ? (
-                            <EmptyState
-                                title={isTeam ? 'Belum ada tugas' : 'Belum ada penugasan tim'}
-                                description={
-                                    isTeam
-                                        ? 'Penugasan Anda akan muncul di sini setelah PIC menugaskan tim.'
-                                        : 'Tugaskan tim pada halaman detail event.'
-                                }
-                            />
-                        ) : (
-                            <div className="overflow-x-auto">
-                                <Table>
-                                    <THead>
-                                        <TR>
-                                            <TH>Event</TH>
-                                            <TH>Tanggal</TH>
-                                            <TH>Status</TH>
-                                            <TH>Anggota</TH>
-                                            <TH className="text-right">Aksi</TH>
-                                        </TR>
-                                    </THead>
-                                    <TBody>
-                                        {events.map((event) => (
-                                            <TR key={event.id}>
-                                                <TD>
-                                                    <p className="font-medium text-text">
-                                                        {event.event_name}
-                                                        {event.is_today && (
-                                                            <Badge variant="info" className="ml-2 align-middle">
-                                                                Hari ini
-                                                            </Badge>
-                                                        )}
-                                                    </p>
-                                                    <p className="text-xs text-muted">
-                                                        {event.brand} · PIC: {event.pic ?? '-'}
-                                                    </p>
-                                                </TD>
-                                                <TD>{formatDate(event.event_date)}</TD>
-                                                <TD>
-                                                    <StatusBadge
-                                                        status={event.status}
-                                                        label={event.status_label}
-                                                    />
-                                                </TD>
-                                                <TD>
-                                                    <div className="flex flex-wrap gap-1">
-                                                        {event.members?.map((m, i) => (
-                                                            <Badge key={i} variant="outline">
-                                                                {m.name} · {m.position}
-                                                            </Badge>
-                                                        ))}
-                                                    </div>
-                                                </TD>
-                                                <TD className="text-right">
-                                                    <div className="flex items-center justify-end gap-3">
-                                                        {canQuickReport && (
-                                                            <Link
-                                                                href={route('quick-reports.create') + `?event=${event.id}`}
-                                                                className="text-sm font-medium text-primary hover:text-primary"
-                                                            >
-                                                                Buat Laporan
-                                                            </Link>
-                                                        )}
-                                                        {canCreateReport && !canQuickReport && (
-                                                            <Link
-                                                                href={route('reports.create')}
-                                                                className="text-sm font-medium text-primary hover:text-primary"
-                                                            >
-                                                                Buat Laporan
-                                                            </Link>
-                                                        )}
-                                                        <Link
-                                                            href={route('events.show', event.id)}
-                                                            className="text-sm font-medium text-muted hover:text-text"
-                                                        >
-                                                            Lihat Detail
-                                                        </Link>
-                                                    </div>
-                                                </TD>
-                                            </TR>
-                                        ))}
-                                    </TBody>
-                                </Table>
-                            </div>
-                        )}
-                    </CardTable>
+                    {upcomingGroups.length === 0 && pastGroups.length === 0 ? (
+                        <EmptyState title={isTeam ? 'Belum ada tugas' : 'Belum ada penugasan tim'} description={isTeam ? 'Penugasan Anda akan muncul di sini setelah PIC menugaskan tim.' : 'Tugaskan tim pada halaman detail event.'} />
+                    ) : (
+                        <div className="space-y-6">
+                            {upcomingGroups.length > 0 && <section><h2 className="mb-3 text-sm font-semibold text-text">Mendatang</h2><EventGroupView groups={upcomingGroups} renderTable={renderRows} /></section>}
+                            {pastGroups.length > 0 && <section><h2 className="mb-3 text-sm font-semibold text-text">Selesai / Lewat</h2><EventGroupView groups={pastGroups} renderTable={renderRows} /></section>}
+                        </div>
+                    )}
                 </div>
 
                 {isTeam ? (
@@ -159,6 +139,20 @@ export default function TeamIndex({
                             icon={<CircleCheck className="h-5 w-5" />}
                             tone="success"
                         />
+                        <Card className="sm:col-span-2 lg:col-span-1">
+                            <CardHeader>
+                                <CardTitle>Laporan Foto & Absensi</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                                <p className="text-sm text-muted">
+                                    Quick Report menggabungkan laporan foto, video, dan absensi.
+                                    Status tugas serta riwayat laporan tersedia dalam satu halaman.
+                                </p>
+                                <Link href={route('quick-reports.index')}>
+                                    <Button variant="primary">Lihat Tugas & Riwayat</Button>
+                                </Link>
+                            </CardContent>
+                        </Card>
                     </div>
                 ) : (
                     <Card className="h-fit">

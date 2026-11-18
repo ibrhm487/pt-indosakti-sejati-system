@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { Link, usePage } from '@inertiajs/react';
+import { Link } from '@inertiajs/react';
 import { CheckCircle2, Info, Search, XCircle } from 'lucide-react';
 import {
     FormEventHandler,
@@ -30,7 +30,7 @@ export function PageHeader({
                 <div className="flex items-start gap-3">
                     <span className="mt-1.5 h-9 w-1.5 shrink-0 rounded-full bg-primary" />
                     <div>
-                        <h1 className="text-2xl font-bold tracking-tight text-text">
+                        <h1 className="text-xl font-bold tracking-tight text-text sm:text-2xl">
                             {title}
                         </h1>
                         {subtitle && (
@@ -39,7 +39,7 @@ export function PageHeader({
                     </div>
                 </div>
                 {children && (
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
                         {children}
                     </div>
                 )}
@@ -88,41 +88,6 @@ export function Pagination({ paginator }: { paginator: Paginator }) {
             </div>
         </div>
     );
-}
-
-export function FlashMessages() {
-    const { flash } = usePage().props;
-    const [dismissed, setDismissed] = useState<string[]>([]);
-
-    const messages: ReactNode[] = [];
-
-    if (flash?.success && !dismissed.includes('success')) {
-        messages.push(
-            <Alert
-                key="success"
-                tone="success"
-                onClose={() => setDismissed((d) => [...d, 'success'])}
-            >
-                {flash.success}
-            </Alert>,
-        );
-    }
-
-    if (flash?.error && !dismissed.includes('error')) {
-        messages.push(
-            <Alert
-                key="error"
-                tone="error"
-                onClose={() => setDismissed((d) => [...d, 'error'])}
-            >
-                {flash.error}
-            </Alert>,
-        );
-    }
-
-    if (messages.length === 0) return null;
-
-    return <div className="mb-4 space-y-2">{messages}</div>;
 }
 
 export function Alert({
@@ -299,7 +264,7 @@ export function Tabs({
     onChange: (key: string) => void;
 }) {
     return (
-        <div className="flex flex-wrap gap-1 rounded-xl border border-border bg-page p-1">
+        <div className="flex flex-wrap gap-1 overflow-x-auto rounded-xl border border-border bg-page p-1">
             {items.map((item) => {
                 const isActive = item.key === active;
                 return (

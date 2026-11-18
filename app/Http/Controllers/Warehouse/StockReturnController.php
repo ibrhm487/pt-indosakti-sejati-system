@@ -6,8 +6,10 @@ use App\Enums\MrvStatus;
 use App\Http\Controllers\Controller;
 use App\Models\StockRequest;
 use App\Models\StockReturn;
+use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\StockService;
+use App\Support\EventAccess;
 use DomainException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,7 +21,8 @@ class StockReturnController extends Controller
 {
     public function index(Request $request): Response
     {
-        $returns = StockReturn::query()->with(['stockRequest:id,mrv_number', 'event:id,event_name', 'recorder:id,name'])
+        $returns = EventAccess::scope(StockReturn::query(), $request->user())
+            ->with(['stockRequest:id,mrv_number', 'event:id,event_name', 'recorder:id,name'])
             ->latest()->paginate(15)->withQueryString()->through(fn (StockReturn $r) => [
                 'id' => $r->id,
                 'return_number' => $r->return_number,
@@ -37,7 +40,7 @@ class StockReturnController extends Controller
     {
         $mrvId = $request->integer('stock_request_id');
 
-        $requests = StockRequest::query()
+        $requests = EventAccess::scope(StockRequest::query(), $request->user())
             ->where('status', MrvStatus::ISSUED)
             ->whereDoesntHave('returns')
             ->with('items.product:id,name,sku,unit')
@@ -76,6 +79,8 @@ class StockReturnController extends Controller
         ]);
 
         $stockRequest = StockRequest::with('items.product')->findOrFail($data['stock_request_id']);
+
+        abort_unless($this->canAccessStockRequest($request->user(), $stockRequest), 403);
 
         if ($stockRequest->status !== MrvStatus::ISSUED) {
             return back()->withErrors(['stock_request_id' => 'Pengembalian hanya dapat dicatat untuk MRV yang sudah dikeluarkan.']);
@@ -156,7 +161,16 @@ class StockReturnController extends Controller
 
     public function downloadPhoto(StockReturn $stockReturn)
     {
-        abort_unless(request()->user()->hasPermission('warehouse.view'), 403);
+        $user = request()->user();
+
+        abort_unless($user->hasPermission('warehouse.view'), 403);
+
+        abort_unless(
+            $user->hasFullAccess()
+                || $user->hasRole('warehouse')
+                || ($stockReturn->event && EventAccess::allows($user, $stockReturn->event)),
+            403,
+        );
 
         abort_unless($stockReturn->photo_path, 404);
 
@@ -210,5 +224,12 @@ class StockReturnController extends Controller
         }
 
         return null;
+    }
+
+    private function canAccessStockRequest(User $user, StockRequest $stockRequest): bool
+    {
+        return $user->hasFullAccess()
+            || $user->hasRole('warehouse')
+            || ($stockRequest->event && EventAccess::allows($user, $stockRequest->event));
     }
 }

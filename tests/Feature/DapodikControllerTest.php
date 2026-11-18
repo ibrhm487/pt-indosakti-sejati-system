@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Fjp;
 use App\Models\User;
+use App\Models\Venue;
 use App\Services\DapoApiService;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -22,7 +23,7 @@ class DapodikControllerTest extends TestCase
         $schools = [['npsn' => '12345678', 'nama' => 'SD Contoh']];
 
         $this->mock(DapoApiService::class, function (MockInterface $mock) use ($schools): void {
-            $mock->shouldReceive('search')->once()->with('SD Contoh', 200, false, null, [])->andReturn($schools);
+            $mock->shouldReceive('search')->once()->with('SD Contoh', 200, false, null, [], false)->andReturn($schools);
         });
 
         $this->actingAs($admin)
@@ -39,7 +40,7 @@ class DapodikControllerTest extends TestCase
         $schools = [['npsn' => '12345678', 'nama' => 'SD Contoh']];
 
         $this->mock(DapoApiService::class, function (MockInterface $mock) use ($schools): void {
-            $mock->shouldReceive('search')->once()->with('SD Contoh', 200, true, 'SD', ['NEGERI', 'SWASTA'])->andReturn($schools);
+            $mock->shouldReceive('search')->once()->with('SD Contoh', 200, true, 'SD', ['NEGERI', 'SWASTA'], false)->andReturn($schools);
         });
 
         $this->actingAs($admin)
@@ -54,16 +55,60 @@ class DapodikControllerTest extends TestCase
             ->assertJsonPath('data.0.npsn', '12345678');
     }
 
-    public function test_search_rejects_queries_shorter_than_five_characters(): void
+    public function test_search_passes_the_jakarta_only_filter_to_the_service(): void
+    {
+        $this->seed(RolePermissionSeeder::class);
+        $admin = User::where('email', 'admin@indosakti.com')->firstOrFail();
+        $schools = [['npsn' => '12345678', 'nama' => 'SD Jakarta']];
+
+        $this->mock(DapoApiService::class, function (MockInterface $mock) use ($schools): void {
+            $mock->shouldReceive('search')
+                ->once()
+                ->with('SD Jakarta', 100, false, null, [], true)
+                ->andReturn($schools);
+        });
+
+        $this->actingAs($admin)
+            ->getJson(route('dapodik.search', [
+                'q' => 'SD Jakarta',
+                'limit' => 100,
+                'jakarta' => true,
+            ]))
+            ->assertOk()
+            ->assertJsonPath('data.0.npsn', '12345678');
+    }
+
+    public function test_search_accepts_a_string_boolean_jabodetabek_flag(): void
+    {
+        $this->seed(RolePermissionSeeder::class);
+        $admin = User::where('email', 'admin@indosakti.com')->firstOrFail();
+        $schools = [['npsn' => '12345678', 'nama' => 'SD Contoh']];
+
+        $this->mock(DapoApiService::class, function (MockInterface $mock) use ($schools): void {
+            $mock->shouldReceive('search')->once()->with('SD Contoh', 200, true, 'SD', [], false)->andReturn($schools);
+        });
+
+        $this->actingAs($admin)
+            ->getJson(route('dapodik.search', [
+                'q' => 'SD Contoh',
+                'limit' => 200,
+                'jabodetabek' => 'true',
+                'jenjang' => 'SD',
+            ]))
+            ->assertOk()
+            ->assertJsonPath('data.0.npsn', '12345678');
+    }
+
+    public function test_search_rejects_queries_shorter_than_three_characters(): void
     {
         $this->seed(RolePermissionSeeder::class);
         $admin = User::where('email', 'admin@indosakti.com')->firstOrFail();
 
         $this->actingAs($admin)
-            ->getJson(route('dapodik.search', ['q' => 'abcd']))
+            ->getJson(route('dapodik.search', ['q' => 'ab']))
             ->assertUnprocessable()
             ->assertJsonValidationErrors('q')
-            ->assertJsonPath('errors.q.0', 'The q field must be at least 5 characters.');
+            ->assertJsonPath('errors.q.0', 'The q field must be at least 3 characters.');
     }
 
     public function test_search_returns_service_unavailable_when_dapodik_is_unreachable(): void
@@ -74,14 +119,42 @@ class DapodikControllerTest extends TestCase
         $this->mock(DapoApiService::class, function (MockInterface $mock): void {
             $mock->shouldReceive('search')
                 ->once()
-                ->with('Sekolah', 200, false, null, [])
+                ->with('Sekolah', 200, false, null, [], false)
                 ->andThrow(new RuntimeException('Upstream timeout'));
         });
 
         $this->actingAs($admin)
             ->getJson(route('dapodik.search', ['q' => 'Sekolah']))
             ->assertServiceUnavailable()
-            ->assertJsonPath('message', 'Layanan Dapodik sedang tidak tersedia. Silakan coba lagi.');
+            ->assertJsonPath('message', 'Upstream timeout');
+    }
+
+    public function test_search_uses_local_school_when_dapodik_is_unreachable(): void
+    {
+        $this->seed(RolePermissionSeeder::class);
+        $admin = User::where('email', 'admin@indosakti.com')->firstOrFail();
+
+        Venue::create([
+            'name' => 'SDN Rawalumbu 01',
+            'npsn' => '20521207',
+            'is_school' => true,
+            'city' => 'Bekasi',
+            'province' => 'Jawa Barat',
+        ]);
+
+        $this->mock(DapoApiService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('search')
+                ->once()
+                ->with('Rawalumbu', 200, false, null, [], false)
+                ->andThrow(new RuntimeException('Dapodik tidak tersedia'));
+        });
+
+        $this->actingAs($admin)
+            ->getJson(route('dapodik.search', ['q' => 'Rawalumbu']))
+            ->assertOk()
+            ->assertJsonPath('data.0.npsn', '20521207')
+            ->assertJsonPath('data.0.nama', 'SDN Rawalumbu 01')
+            ->assertJsonPath('source', 'Data sekolah tersimpan lokal karena Dapodik sedang tidak tersedia.');
     }
 
     public function test_school_detail_returns_not_found_when_npsn_is_unknown(): void

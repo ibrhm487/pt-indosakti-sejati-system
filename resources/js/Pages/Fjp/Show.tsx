@@ -1,9 +1,9 @@
-import { EmptyState, ModalForm, PageHeader } from '@/Components/AppBits';
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Field, Input, Modal, Select, StatusBadge, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
+import { EmptyState, PageHeader } from '@/Components/AppBits';
+import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Field, Input, Select, StatusBadge, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
 import AppLayout from '@/Layouts/AppLayout';
 import { formatDate, formatDateTime, formatNumber } from '@/lib/utils';
-import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { CalendarPlus, Download, History, MapPin, RefreshCw, Upload } from 'lucide-react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Download, History, MapPin, RefreshCw, Upload } from 'lucide-react';
 import { useState } from 'react';
 
 type FjpEvent = {
@@ -30,10 +30,6 @@ const HISTORY_LABELS: Record<string, string> = {
     UPDATE_FJP: 'FJP diperbarui',
     UPDATE_FJP_INLINE: 'FJP diperbarui (inline)',
     DELETE_FJP: 'FJP dihapus',
-    FJP_SUBMIT: 'Diajukan',
-    FJP_APPROVE: 'Disetujui',
-    FJP_REJECT: 'Ditolak',
-    FJP_CANCEL: 'Dibatalkan',
     SYNC_DAPODIK: 'Sinkronisasi Dapodik',
     UPLOAD_FJP_ATTACHMENT: 'Lampiran diunggah',
 };
@@ -43,67 +39,23 @@ export default function FjpShow({
     attachments,
     events,
     history,
-    pics,
     can,
 }: {
     fjp: any;
     attachments: any[];
     events: FjpEvent[];
     history: HistoryEntry[];
-    pics: { id: number; name: string }[];
     can: {
         update: boolean;
         delete: boolean;
-        create_event: boolean;
-        approve: boolean;
-        reject: boolean;
-        cancel: boolean;
     };
 }) {
-    const [rejectOpen, setRejectOpen] = useState(false);
-    const [cancelOpen, setCancelOpen] = useState(false);
-    const [eventOpen, setEventOpen] = useState(false);
-    const [reason, setReason] = useState('');
     const [syncing, setSyncing] = useState(false);
 
     const attachForm = useForm<{ category: string; file: File | null }>({
         category: 'supporting',
         file: null,
     });
-
-    const eventForm = useForm<{
-        pic_id: string;
-        event_date: string;
-        sampling_target: string;
-        notes: string;
-    }>({
-        pic_id: '',
-        event_date: fjp.event_date ?? '',
-        sampling_target: fjp.sampling_target != null ? String(fjp.sampling_target) : '',
-        notes: '',
-    });
-
-    const openCreateEvent = () => {
-        eventForm.clearErrors();
-        eventForm.setData({
-            pic_id: '',
-            event_date: fjp.event_date ?? '',
-            sampling_target: fjp.sampling_target != null ? String(fjp.sampling_target) : '',
-            notes: '',
-        });
-        setEventOpen(true);
-    };
-
-    const submitCreateEvent = (e: React.FormEvent) => {
-        e.preventDefault();
-        eventForm.post(route('fjp.create-event', fjp.id), {
-            onSuccess: () => setEventOpen(false),
-        });
-    };
-
-    const workflow = (action: string, why?: string) => {
-        router.post(route('fjp.workflow', fjp.id), { action, reason: why ?? '' }, { preserveScroll: true });
-    };
 
     const syncDapodik = () => {
         if (!fjp.npsn) return;
@@ -122,65 +74,33 @@ export default function FjpShow({
         });
     };
 
-    const dispatch = usePage().props as any;
-    const pageErrors: Record<string, string> = dispatch.errors ?? {};
-
-    const status = fjp.permit_status;
-
     return (
         <AppLayout title="Detail FJP">
             <Head title={fjp.event_name} />
-            <PageHeader title={fjp.school_name || fjp.event_name} subtitle={`${fjp.fjp_number}${fjp.npsn ? ` · NPSN ${fjp.npsn}` : ''}`}>
-                {can.create_event && status === 'approved' && events.length === 0 && (
-                    <Button variant="primary" onClick={openCreateEvent}>
-                        <CalendarPlus className="h-4 w-4" /> Buat Event
-                    </Button>
-                )}
+            <PageHeader title={fjp.school_name || fjp.event_name} subtitle={fjp.npsn ? `NPSN ${fjp.npsn}` : undefined}>
                 {can.update && (
-                    <>
-                        {status === 'draft' && (
-                            <Button variant="primary" onClick={() => workflow('submit')}>Ajukan</Button>
-                        )}
-                        {(status === 'submitted' || status === 'pending') && (
-                            <>
-                                {can.approve && (
-                                    <Button variant="success" onClick={() => workflow('approve')}>Setujui</Button>
-                                )}
-                                {can.reject && (
-                                    <Button variant="destructive" onClick={() => setRejectOpen(true)}>Tolak</Button>
-                                )}
-                            </>
-                        )}
-                        {(status === 'rejected') && (
-                            <Button variant="primary" onClick={() => workflow('submit')}>Ajukan Ulang</Button>
-                        )}
-                        {can.cancel && status !== 'cancelled' && status !== 'approved' && (
-                            <Button variant="outline" onClick={() => setCancelOpen(true)}>Batalkan</Button>
-                        )}
-                        <Link href={route('fjp.edit', fjp.id)}>
-                            <Button variant="subtle">Ubah</Button>
-                        </Link>
-                    </>
+                    <Link href={route('fjp.edit', fjp.id)}>
+                        <Button variant="subtle">Ubah</Button>
+                    </Link>
                 )}
             </PageHeader>
-
-            {pageErrors.permit_status && (
-                <p className="mb-4 rounded-xl bg-danger/10 px-3.5 py-2.5 text-sm text-danger">
-                    {pageErrors.permit_status}
-                </p>
-            )}
 
             <div className="grid gap-6 lg:grid-cols-3">
                 <Card className="lg:col-span-2">
                     <CardHeader className="flex items-center justify-between">
                         <CardTitle>Detail FJP</CardTitle>
-                        <StatusBadge status={fjp.permit_status} label={fjp.permit_status_label} />
+                        <StatusBadge status={fjp.status} label={fjp.status_label} />
                     </CardHeader>
                     <CardContent>
                         <dl className="grid grid-cols-2 gap-4 text-sm">
                             <Detail label="Sekolah" value={fjp.school_name} />
                             <Detail label="NPSN" value={fjp.npsn} />
                             <Detail label="Alamat" value={fjp.address} className="col-span-2" />
+                            <Detail label="Kota/Kabupaten" value={fjp.city} />
+                            <Detail label="Kecamatan" value={fjp.kecamatan} />
+                            <Detail label="Kelurahan" value={fjp.kelurahan} />
+                            <Detail label="Provinsi" value={fjp.province} />
+                            <Detail label="Venue Penjadwalan PIC/Tim" value={fjp.venue_name} className="col-span-2" />
                             <div className="col-span-2">
                                 <dt className="text-xs uppercase tracking-wide text-muted">Link Lokasi</dt>
                                 <dd className="mt-0.5">
@@ -201,16 +121,6 @@ export default function FjpShow({
                             <Detail label="Catatan" value={fjp.notes} className="col-span-2" />
                         </dl>
 
-                        {fjp.rejection_reason && (
-                            <p className="mt-4 rounded-xl bg-danger/10 px-3.5 py-2.5 text-sm text-danger">
-                                Alasan penolakan: {fjp.rejection_reason}
-                            </p>
-                        )}
-                        {fjp.cancellation_reason && (
-                            <p className="mt-4 rounded-xl bg-warning/10 px-3.5 py-2.5 text-sm text-warning">
-                                Alasan pembatalan: {fjp.cancellation_reason}
-                            </p>
-                        )}
                     </CardContent>
                 </Card>
 
@@ -256,28 +166,14 @@ export default function FjpShow({
             </div>
 
             <Card className="mt-6">
-                <CardHeader className="flex items-center justify-between">
+                <CardHeader>
                     <CardTitle>Event Terkait</CardTitle>
-                    {can.create_event && status === 'approved' && events.length > 0 && (
-                        <Button variant="outline" size="sm" onClick={openCreateEvent}>
-                            <CalendarPlus className="h-4 w-4" /> Buat Event
-                        </Button>
-                    )}
                 </CardHeader>
                 <CardContent>
-                    {pageErrors.event && (
-                        <p className="mb-4 rounded-xl bg-danger/10 px-3.5 py-2.5 text-sm text-danger">
-                            {pageErrors.event}
-                        </p>
-                    )}
                     {events.length === 0 ? (
                         <EmptyState
                             title="Belum ada event"
-                            description={
-                                status === 'approved'
-                                    ? 'Buat event operasional dari FJP ini.'
-                                    : 'Event dapat dibuat setelah perizinan FJP disetujui.'
-                            }
+                            description="PIC dapat membuat jadwal dan penugasan tim melalui generator jadwal pada daftar FJP."
                         />
                     ) : (
                         <Table>
@@ -364,7 +260,6 @@ export default function FjpShow({
                             <Field label="Kategori" className="sm:w-48">
                                 <Select value={attachForm.data.category} onChange={(e) => attachForm.setData('category', e.target.value)}>
                                     <option value="supporting">Pendukung</option>
-                                    <option value="permit">Perizinan</option>
                                     <option value="school">Sekolah</option>
                                     <option value="other">Lainnya</option>
                                 </Select>
@@ -383,7 +278,7 @@ export default function FjpShow({
             <Card className="mt-6">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                        <History className="h-4 w-4" /> Riwayat Perizinan
+                        <History className="h-4 w-4" /> Riwayat FJP
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -414,82 +309,6 @@ export default function FjpShow({
                 </CardContent>
             </Card>
 
-            <Modal
-                open={rejectOpen}
-                onClose={() => setRejectOpen(false)}
-                title="Tolak FJP"
-                footer={
-                    <>
-                        <Button variant="outline" size="sm" onClick={() => setRejectOpen(false)}>Batal</Button>
-                        <Button variant="destructive" size="sm" onClick={() => { workflow('reject', reason); setRejectOpen(false); setReason(''); }}>Tolak</Button>
-                    </>
-                }
-            >
-                <Field label="Alasan penolakan">
-                    <Input value={reason} onChange={(e) => setReason(e.target.value)} />
-                </Field>
-            </Modal>
-
-            <Modal
-                open={cancelOpen}
-                onClose={() => setCancelOpen(false)}
-                title="Batalkan FJP"
-                footer={
-                    <>
-                        <Button variant="outline" size="sm" onClick={() => setCancelOpen(false)}>Batal</Button>
-                        <Button variant="destructive" size="sm" onClick={() => { workflow('cancel', reason); setCancelOpen(false); setReason(''); }}>Batalkan FJP</Button>
-                    </>
-                }
-            >
-                <Field label="Alasan pembatalan">
-                    <Input value={reason} onChange={(e) => setReason(e.target.value)} />
-                </Field>
-            </Modal>
-            <ModalForm
-                open={eventOpen}
-                onClose={() => setEventOpen(false)}
-                title="Buat Event dari FJP"
-                description="Data jadwal dan target diwarisi dari FJP. Tentukan PIC penanggung jawab."
-                onSubmit={submitCreateEvent}
-                submitLabel="Buat Event"
-                submitDisabled={eventForm.processing}
-            >
-                <Field label="PIC" error={eventForm.errors.pic_id}>
-                    <Select
-                        value={eventForm.data.pic_id}
-                        onChange={(e) => eventForm.setData('pic_id', e.target.value)}
-                    >
-                        <option value="">- Pilih PIC -</option>
-                        {pics.map((p) => (
-                            <option key={p.id} value={p.id}>
-                                {p.name}
-                            </option>
-                        ))}
-                    </Select>
-                </Field>
-                <Field label="Tanggal Pelaksanaan" error={eventForm.errors.event_date}>
-                    <Input
-                        type="date"
-                        value={eventForm.data.event_date}
-                        onChange={(e) => eventForm.setData('event_date', e.target.value)}
-                    />
-                </Field>
-                <Field label="Target Sampling" error={eventForm.errors.sampling_target}>
-                    <Input
-                        type="number"
-                        min={0}
-                        value={eventForm.data.sampling_target}
-                        onChange={(e) => eventForm.setData('sampling_target', e.target.value)}
-                    />
-                </Field>
-                <Field label="Catatan" error={eventForm.errors.notes}>
-                    <Input
-                        value={eventForm.data.notes}
-                        onChange={(e) => eventForm.setData('notes', e.target.value)}
-                        placeholder="Catatan event (opsional)"
-                    />
-                </Field>
-            </ModalForm>
         </AppLayout>
     );
 }

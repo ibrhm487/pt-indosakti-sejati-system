@@ -14,6 +14,9 @@ use App\Models\PermitRequest;
 use App\Models\Product;
 use App\Models\QuarterlyTarget;
 use App\Models\StockRequest;
+use App\Services\QuarterlyTargetMetrics;
+use App\Support\BrandContext;
+use App\Support\EventGrouping;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -22,12 +25,12 @@ use Inertia\Response;
 
 class DashboardController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(Request $request, QuarterlyTargetMetrics $quarterlyTargetMetrics): Response
     {
         $user = $request->user();
         $role = $user->activeRoleSlug();
 
-        $brandId = $request->integer('brand_id') ?: null;
+        $brandId = BrandContext::resolve($request);
         $dateFrom = $request->string('date_from')->toString() ?: null;
         $dateTo = $request->string('date_to')->toString() ?: null;
 
@@ -43,8 +46,8 @@ class DashboardController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'stats' => $this->statsForRole($user, $role, $brandId, $dateFrom, $dateTo),
-            'quarterly' => $this->quarterlyTargets($brandId),
-            'upcomingEvents' => $this->upcomingEvents($user, $role, $brandId, $dateFrom, $dateTo),
+            'quarterly' => $this->quarterlyTargets($brandId, $quarterlyTargetMetrics),
+            'upcomingGroups' => $this->upcomingGroups($user, $role, $brandId, $dateFrom, $dateTo),
             'trend' => $this->monthlyTrend($user, $role, $brandId),
             // FJP student figures are scoped by fjp.view; roles without that
             // permission (team, kitchen, warehouse, admin_event) get no data.
@@ -168,29 +171,19 @@ class DashboardController extends Controller
         return array_merge($base, $roleStats);
     }
 
-    private function quarterlyTargets(?int $brandId = null): array
+    private function quarterlyTargets(?int $brandId, QuarterlyTargetMetrics $metrics): array
     {
         $year = now()->year;
         $quarter = (int) ceil(now()->month / 3);
         $start = Carbon::create($year, ($quarter - 1) * 3 + 1, 1)->startOfDay();
         $end = (clone $start)->addMonths(3)->subSecond();
-        $latestVerifiedReportIds = EventReport::query()
-            ->selectRaw('MAX(id)')
-            ->where('status', ReportStatus::VERIFIED)
-            ->whereBetween('verified_at', [$start, $end])
-            ->groupBy('event_id');
-        $actualByBrand = EventReport::query()
-            ->join('events', 'event_reports.event_id', '=', 'events.id')
-            ->whereNotNull('events.brand_id')
-            ->whereIn('event_reports.id', $latestVerifiedReportIds)
-            ->groupBy('events.brand_id')
-            ->selectRaw('events.brand_id, SUM(event_reports.actual_sampling) as actual')
-            ->pluck('actual', 'brand_id');
+        $actualByBrand = $metrics->issuedTotalsByBrand($start, $end);
         $targets = QuarterlyTarget::query()
             ->where('year', $year)
             ->where('quarter', $quarter)
             ->whereNotNull('brand_id')
-            ->pluck('target_cups', 'brand_id');
+            ->get(['brand_id', 'target_cups', 'target_shifts'])
+            ->keyBy('brand_id');
 
         return DB::table('brands')
             ->where('is_active', true)
@@ -198,25 +191,32 @@ class DashboardController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'quarterly_target_cups'])
             ->map(function ($brand) use ($targets, $actualByBrand) {
-                $target = (int) ($targets[$brand->id] ?? $brand->quarterly_target_cups ?? 0);
-                $actual = (int) ($actualByBrand[$brand->id] ?? 0);
+                $configured = $targets->get($brand->id);
+                $target = (int) ($configured?->target_cups ?? $brand->quarterly_target_cups ?? 0);
+                $targetShifts = (int) ($configured?->target_shifts ?? 0);
+                $actual = (int) ($actualByBrand[$brand->id]['cups'] ?? 0);
+                $actualShifts = (int) ($actualByBrand[$brand->id]['shifts'] ?? 0);
 
                 return [
                     'brand' => $brand->name,
                     'actual' => $actual,
                     'target' => $target,
                     'percentage' => $target > 0 ? round(($actual / $target) * 100, 1) : 0.0,
+                    'actual_shifts' => $actualShifts,
+                    'target_shifts' => $targetShifts,
+                    'shift_percentage' => $targetShifts > 0
+                        ? round(($actualShifts / $targetShifts) * 100, 1)
+                        : 0.0,
                 ];
             })
             ->all();
     }
 
-    private function upcomingEvents($user, ?string $role, ?int $brandId = null, ?string $dateFrom = null, ?string $dateTo = null): array
+    private function upcomingGroups($user, ?string $role, ?int $brandId = null, ?string $dateFrom = null, ?string $dateTo = null): array
     {
         $query = Event::query()
-            ->with(['brand:id,name', 'venue:id,name'])
-            ->orderBy('event_date')
-            ->limit(5);
+            ->with(['brand:id,name', 'eventType:id,name,requires_school', 'venue:id,name,city,is_school'])
+            ->orderBy('event_date');
 
         if ($dateFrom || $dateTo) {
             if ($dateFrom) {
@@ -241,15 +241,24 @@ class DashboardController extends Controller
             $query->whereHas('teamMembers', fn ($q) => $q->where('user_id', $user->id));
         }
 
-        return $query->get()->map(fn (Event $event) => [
+        $rows = $query->get()->map(fn (Event $event) => [
             'id' => $event->id,
             'event_name' => $event->event_name,
             'brand' => $event->brand?->name,
+            'brand_id' => $event->brand_id,
+            'brand_name' => $event->brand?->name,
+            'event_type' => $event->eventType?->name,
+            'event_type_id' => $event->event_type_id,
+            'event_type_name' => $event->eventType?->name,
+            'requires_school' => (bool) $event->eventType?->requires_school,
             'venue' => $event->venue?->name,
+            'venue_city' => $event->venue?->city,
             'event_date' => $event->event_date?->toDateString(),
             'status' => $event->status->value,
             'status_label' => $event->status->label(),
-        ])->all();
+        ]);
+
+        return EventGrouping::group($rows);
     }
 
     private function schoolComparison(?int $brandId = null): array

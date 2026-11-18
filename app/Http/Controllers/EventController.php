@@ -13,6 +13,7 @@ use App\Models\Event;
 use App\Models\EventReport;
 use App\Models\EventTeamMember;
 use App\Models\EventType;
+use App\Models\Fjp;
 use App\Models\KitchenReport;
 use App\Models\KitchenRequest;
 use App\Models\PermitRequest;
@@ -24,11 +25,16 @@ use App\Models\User;
 use App\Models\Venue;
 use App\Services\AuditLogger;
 use App\Services\EventReadinessService;
+use App\Support\BrandContext;
 use App\Support\EventAccess;
+use App\Support\EventGrouping;
+use App\Support\EventOperationalData;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -37,7 +43,14 @@ class EventController extends Controller
     public function index(Request $request): Response
     {
         $user = $request->user();
-        $query = Event::query()->with(['brand:id,name', 'venue:id,name', 'pic:id,name']);
+        $query = Event::query()
+            ->with([
+                'brand:id,name,slug',
+                'eventType:id,name,requires_school',
+                'venue:id,name,city,is_school',
+                'pic:id,name',
+            ])
+            ->withCount('teamMembers');
 
         $this->scopeForUser($query, $user);
 
@@ -52,34 +65,56 @@ class EventController extends Controller
             $query->where('status', $status);
         }
 
-        if ($brandId = $request->integer('brand_id')) {
-            $query->where('brand_id', $brandId);
-        }
-
         if ($venueId = $request->integer('venue_id')) {
             $query->where('venue_id', $venueId);
         }
 
+        if ($eventTypeId = $request->integer('event_type_id')) {
+            $query->where('event_type_id', $eventTypeId);
+        }
+
+        $brandId = BrandContext::resolve($request);
+        $brandSummaries = $this->brandSummaries(clone $query);
+
+        if ($brandId) {
+            $query->where('brand_id', $brandId);
+        }
+
         $base = clone $query;
 
-        $events = $query->latest('event_date')->paginate(15)->withQueryString()->through(fn (Event $event) => [
-            'id' => $event->id,
-            'event_code' => $event->event_code,
-            'event_name' => $event->event_name,
-            'brand' => $event->brand?->name,
-            'venue' => $event->venue?->name,
-            'event_date' => $event->event_date?->toDateString(),
-            'pic' => $event->pic?->name,
-            'jug_required' => $event->jug_required,
-            'status' => $event->status->value,
-            'status_label' => $event->status->label(),
-        ]);
+        $eventRows = $query
+            ->orderBy('event_date')
+            ->get()
+            ->map(fn (Event $event) => [
+                'id' => $event->id,
+                'event_code' => $event->event_code,
+                'event_name' => $event->event_name,
+                'brand' => $event->brand?->name,
+                'brand_id' => $event->brand_id,
+                'brand_name' => $event->brand?->name,
+                'event_type' => $event->eventType?->name,
+                'event_type_id' => $event->event_type_id,
+                'event_type_name' => $event->eventType?->name,
+                'requires_school' => (bool) $event->eventType?->requires_school,
+                'venue' => $event->venue?->name,
+                'venue_city' => $event->venue?->city,
+                'venue_is_school' => (bool) $event->venue?->is_school,
+                'event_date' => $event->event_date?->toDateString(),
+                'start_time' => $event->start_time,
+                'end_time' => $event->end_time,
+                'sampling_target' => $event->sampling_target,
+                'pic' => $event->pic?->name,
+                'team_count' => $event->team_members_count,
+                'jug_required' => $event->jug_required,
+                'status' => $event->status->value,
+                'status_label' => $event->status->label(),
+            ]);
 
         $month = $this->resolveMonth($request->string('month')->toString());
         $monthEnd = (clone $month)->endOfMonth();
 
         $calendarEvents = $base
-            ->whereBetween('event_date', [$month->toDateString(), $monthEnd->toDateString()])
+            ->whereBetween('event_date', [$month->toDateString(), $monthEnd->toDateTimeString()])
             ->orderBy('event_date')
             ->get(['id', 'event_code', 'event_name', 'event_date', 'status'])
             ->map(fn (Event $event) => [
@@ -93,14 +128,78 @@ class EventController extends Controller
             ->values();
 
         return Inertia::render('Events/Index', [
-            'events' => $events,
+            'eventGroups' => EventGrouping::group($eventRows),
+            'brandSummaries' => $brandSummaries,
+            'eventCount' => $eventRows->count(),
             'calendarEvents' => $calendarEvents,
             'month' => $month->format('Y-m'),
-            'filters' => $request->only('search', 'status', 'brand_id', 'venue_id'),
+            'filters' => [
+                ...$request->only('search', 'status', 'event_type_id', 'venue_id'),
+                'brand_id' => $brandId,
+            ],
             'statuses' => collect(EventStatus::cases())->map(fn ($s) => ['value' => $s->value, 'label' => $s->label()]),
             'canCreate' => $user->hasPermission('events.create'),
-            ...$this->formOptions(),
+            'canUpdate' => $user->hasPermission('events.update'),
+            'canDelete' => $user->hasPermission('events.delete'),
+            ...$this->formOptions(confirmedOnly: false),
         ]);
+    }
+
+    /**
+     * Event totals per brand with status buckets for the summary cards.
+     * The query is expected to already be scoped for the user and filtered by
+     * the non-brand filters, so the cards always reflect what is on screen.
+     *
+     * @param  Builder<Event>  $query
+     * @return array<int, array<string, mixed>>
+     */
+    private function brandSummaries($query): array
+    {
+        $rows = (clone $query)
+            ->whereNotNull('brand_id')
+            ->toBase()
+            ->selectRaw('brand_id, status, COUNT(*) as aggregate')
+            ->groupBy('brand_id', 'status')
+            ->get();
+
+        if ($rows->isEmpty()) {
+            return [];
+        }
+
+        $brandNames = Brand::query()
+            ->whereIn('id', $rows->pluck('brand_id')->unique())
+            ->pluck('name', 'id');
+
+        $buckets = [
+            'planning' => ['draft', 'planning', 'permission'],
+            'preparation' => ['team_assignment', 'warehouse_preparation', 'kitchen_preparation'],
+            'ready_ongoing' => ['ready', 'ongoing'],
+            'completed' => ['completed'],
+            'cancelled' => ['cancelled'],
+        ];
+
+        return $rows
+            ->groupBy('brand_id')
+            ->map(function ($statusRows, $brandId) use ($brandNames, $buckets): array {
+                $counts = $statusRows->pluck('aggregate', 'status');
+
+                $summary = [
+                    'brand_id' => (int) $brandId,
+                    'brand_name' => $brandNames->get((int) $brandId, 'Brand'),
+                    'total' => (int) $statusRows->sum('aggregate'),
+                ];
+
+                foreach ($buckets as $key => $statuses) {
+                    $summary[$key] = (int) collect($statuses)->sum(
+                        fn (string $status) => (int) ($counts[$status] ?? 0),
+                    );
+                }
+
+                return $summary;
+            })
+            ->sortBy('brand_name')
+            ->values()
+            ->all();
     }
 
     /**
@@ -110,7 +209,7 @@ class EventController extends Controller
     {
         if ($month !== '') {
             try {
-                return Carbon::createFromFormat('Y-m', $month)->startOfMonth();
+                return Carbon::createFromFormat('Y-m-d', $month.'-01')->startOfMonth();
             } catch (\Exception) {
                 // fall through to the current month
             }
@@ -125,14 +224,67 @@ class EventController extends Controller
     }
 
     /**
-     * @return array{brands: Collection, eventTypes: Collection, venues: Collection, pics: Collection}
+     * @return array{brands: Collection, eventTypes: Collection, venues: Collection, confirmedFjps: Collection, pics: Collection}
      */
-    private function formOptions(): array
+    private function formOptions(?Venue $includeVenue = null, bool $confirmedOnly = true, ?int $includeFjpId = null): array
     {
+        $venues = Venue::query();
+
+        if ($confirmedOnly) {
+            $venues->usable();
+        }
+
+        $venueColumns = ['id', 'name', 'npsn', 'is_school', 'address', 'city', 'province'];
+
+        $venues = $venues->orderBy('name')->get($venueColumns);
+
+        if ($includeVenue && ! $venues->contains('id', $includeVenue->id)) {
+            $venues->push($includeVenue->only($venueColumns));
+        }
+
         return [
             'brands' => Brand::where('is_active', true)->get(['id', 'name']),
-            'eventTypes' => EventType::where('is_active', true)->get(['id', 'name', 'requires_school', 'kitchen_default']),
-            'venues' => Venue::orderBy('name')->get(['id', 'name', 'npsn', 'is_school']),
+            'eventTypes' => EventType::where('is_active', true)->orderBy('name')->get(['id', 'brand_id', 'name', 'requires_school', 'kitchen_default']),
+            'venues' => $venues,
+            'confirmedFjps' => Fjp::query()
+                ->with(['brand:id,name', 'eventType:id,name', 'venue:id,name,address,city,province'])
+                ->where('permit_status', '!=', PermitStatus::CANCELLED)
+                ->whereIn('status', [Fjp::STATUS_CONFIRM, 'approved'])
+                ->where(function ($query) use ($includeFjpId) {
+                    $query->whereDoesntHave(
+                        'events',
+                        fn ($events) => $events->where('status', '!=', EventStatus::CANCELLED->value),
+                    );
+
+                    if ($includeFjpId) {
+                        $query->orWhere('id', $includeFjpId);
+                    }
+                })
+                ->orderBy('event_date')
+                ->orderBy('id')
+                ->get()
+                ->map(fn (Fjp $fjp) => [
+                    'id' => $fjp->id,
+                    'fjp_number' => $fjp->fjp_number,
+                    'venue_id' => $fjp->venue_id,
+                    'venue_name' => $fjp->venue?->name,
+                    'venue_address' => $fjp->venue?->address ?? $fjp->address,
+                    'venue_city' => $fjp->venue?->city ?? $fjp->city,
+                    'venue_province' => $fjp->venue?->province ?? $fjp->province,
+                    'maps_url' => $fjp->maps_url,
+                    'brand_id' => $fjp->brand_id,
+                    'brand_name' => $fjp->brand?->name,
+                    'event_type_id' => $fjp->event_type_id,
+                    'event_type_name' => $fjp->eventType?->name,
+                    'event_date' => $fjp->event_date?->toDateString(),
+                    'start_time' => $fjp->start_time,
+                    'end_time' => $fjp->end_time,
+                    'sampling_target' => $fjp->sampling_target,
+                    'jumlah_siswa_sekolah' => $fjp->jumlah_siswa_sekolah,
+                    'jug_required' => $fjp->jug_required,
+                    'school_name' => $fjp->school_name,
+                ])
+                ->values(),
             'pics' => User::whereHas('roles', fn ($q) => $q->where('slug', 'pic'))->get(['id', 'name']),
         ];
     }
@@ -140,6 +292,10 @@ class EventController extends Controller
     public function store(Request $request)
     {
         $data = $this->validatedEvent($request);
+
+        if (empty($data['pic_id']) && $request->user()->hasRole('pic')) {
+            $data['pic_id'] = $request->user()->id;
+        }
 
         $data['event_code'] = Event::generateCode();
         $data['status'] = EventStatus::PLANNING;
@@ -162,9 +318,11 @@ class EventController extends Controller
                 'id' => $event->id,
                 'event_code' => $event->event_code,
                 'event_name' => $event->event_name,
+                'fjp_id' => $event->fjp_id,
                 'brand_id' => $event->brand_id,
                 'event_type_id' => $event->event_type_id,
                 'venue_id' => $event->venue_id,
+                'venue' => $event->venue?->only(['name', 'address', 'city', 'province']),
                 'event_date' => $event->event_date?->toDateString(),
                 'start_time' => $event->start_time,
                 'end_time' => $event->end_time,
@@ -175,7 +333,7 @@ class EventController extends Controller
                 'status' => $event->status->value,
                 'is_terminal' => $event->status->isTerminal(),
             ],
-            ...$this->formOptions(),
+            ...$this->formOptions($event->venue, includeFjpId: $event->fjp_id),
         ]);
     }
 
@@ -190,7 +348,7 @@ class EventController extends Controller
             ]);
         }
 
-        $data = $this->validatedEvent($request);
+        $data = $this->validatedEvent($request, $event);
         $old = $event->only(array_keys($data));
 
         $event->update($data);
@@ -200,11 +358,39 @@ class EventController extends Controller
         return redirect()->route('events.show', $event)->with('success', 'Event diperbarui.');
     }
 
-    /** @return array<string, mixed> */
-    private function validatedEvent(Request $request): array
+    public function destroy(Request $request, Event $event)
     {
-        return $request->validate([
-            'event_name' => ['required', 'string', 'max:255'],
+        $this->authorizeView($request, $event);
+        abort_unless($request->user()->hasPermission('events.delete'), 403);
+
+        if ($event->status === EventStatus::ONGOING || $event->status->isTerminal()) {
+            return back()->withErrors([
+                'event' => 'Event yang sedang berjalan atau sudah selesai tidak dapat dihapus.',
+            ]);
+        }
+
+        if (EventOperationalData::exists($event)) {
+            return back()->withErrors([
+                'event' => 'Event yang sudah memiliki data operasional tidak dapat dihapus.',
+            ]);
+        }
+
+        $old = ['event_code' => $event->event_code, 'event_name' => $event->event_name, 'status' => $event->status->value];
+
+        $event->teamMembers()->delete();
+        $event->delete();
+
+        AuditLogger::log('DELETE_EVENT', 'events', $event, $old);
+
+        return redirect()->route('events.index')->with('success', 'Event dihapus.');
+    }
+
+    /** @return array<string, mixed> */
+    private function validatedEvent(Request $request, ?Event $event = null): array
+    {
+        $data = $request->validate([
+            'event_name' => ['nullable', 'string', 'max:255'],
+            'fjp_id' => ['nullable', 'exists:fjp,id'],
             'brand_id' => ['nullable', 'exists:brands,id'],
             'event_type_id' => ['nullable', 'exists:event_types,id'],
             'venue_id' => ['nullable', 'exists:venues,id'],
@@ -216,6 +402,95 @@ class EventController extends Controller
             'jug_required' => ['boolean'],
             'pic_id' => ['nullable', 'exists:users,id'],
         ]);
+
+        if (! empty($data['fjp_id'])) {
+            $fjp = Fjp::with('venue')->find($data['fjp_id']);
+            $isCurrentFjp = $event !== null && (int) $event->fjp_id === (int) $data['fjp_id'];
+
+            if (! $isCurrentFjp && Event::query()
+                ->where('fjp_id', $data['fjp_id'])
+                ->where('status', '!=', EventStatus::CANCELLED->value)
+                ->exists()) {
+                throw ValidationException::withMessages([
+                    'fjp_id' => 'FJP ini sudah memiliki event. Buka event terkait untuk melanjutkan.',
+                ]);
+            }
+
+            $isSchedulable = $fjp
+                && in_array($fjp->status, [Fjp::STATUS_CONFIRM, 'approved'], true);
+
+            if (! $isCurrentFjp && ! $isSchedulable) {
+                throw ValidationException::withMessages([
+                    'fjp_id' => 'Event hanya dapat dijadwalkan dari FJP yang disetujui (approved/confirm).',
+                ]);
+            }
+
+            $venueId = $fjp->venue_id
+                ?? ($data['venue_id'] ?? null)
+                ?? ($isCurrentFjp ? $event->venue_id : null);
+
+            if (! $venueId) {
+                throw ValidationException::withMessages([
+                    'venue_id' => 'FJP tersebut belum memiliki lokasi. Pilih venue terlebih dahulu.',
+                ]);
+            }
+
+            if (! $fjp->venue_id) {
+                $fjp->update(['venue_id' => $venueId]);
+            }
+
+            $data['venue_id'] = $venueId;
+            $data['brand_id'] = $fjp->brand_id ?? ($isCurrentFjp ? $event->brand_id : null);
+            $data['event_type_id'] = $fjp->event_type_id ?? ($isCurrentFjp ? $event->event_type_id : null);
+
+            if (blank($data['event_date'] ?? null) && $fjp->event_date) {
+                $data['event_date'] = $fjp->event_date->toDateString();
+            }
+
+            if (blank($data['start_time'] ?? null)) {
+                $data['start_time'] = $fjp->start_time;
+            }
+
+            if (blank($data['end_time'] ?? null)) {
+                $data['end_time'] = $fjp->end_time;
+            }
+
+            if (($data['sampling_target'] ?? null) === null) {
+                $data['sampling_target'] = $fjp->jumlah_siswa_sekolah ?? $fjp->sampling_target;
+            }
+
+            if (! array_key_exists('jug_required', $data)) {
+                $data['jug_required'] = (bool) $fjp->jug_required;
+            }
+        }
+
+        $this->ensureEventTypeMatchesBrand($data);
+
+        if (blank($data['event_name'] ?? null)) {
+            $data['event_name'] = Event::composeName(
+                Brand::find($data['brand_id'] ?? null)?->name,
+                EventType::find($data['event_type_id'] ?? null)?->name,
+                Venue::find($data['venue_id'] ?? null)?->name,
+            );
+        }
+
+        return $data;
+    }
+
+    /** @param array<string, mixed> $data */
+    private function ensureEventTypeMatchesBrand(array $data): void
+    {
+        if (empty($data['event_type_id'])) {
+            return;
+        }
+
+        $type = EventType::find($data['event_type_id']);
+
+        if ($type?->brand_id && (int) $type->brand_id !== (int) ($data['brand_id'] ?? 0)) {
+            throw ValidationException::withMessages([
+                'event_type_id' => 'Jenis event tidak sesuai dengan brand yang dipilih.',
+            ]);
+        }
     }
 
     public function show(Event $event, EventReadinessService $readiness): Response
@@ -229,6 +504,7 @@ class EventController extends Controller
             'permit.documents',
             'stockRequests.items.product:id,name,sku,unit', 'stockRequests.returns',
             'kitchenRequest.reports.preparer:id,name',
+            'kitchenRequest.reports.media',
             'attendances.user:id,name',
             'reports.submitter:id,name', 'reports.verifier:id,name',
             'quickReports.user:id,name',
@@ -247,6 +523,12 @@ class EventController extends Controller
             || $user->hasPermission('events.close')
             || $user->hasPermission('admin.audit.view');
         $canAssignTeam = $user->hasPermission('events.assign_team');
+        $displayStatus = $canViewFjp && $event->fjp
+            ? $this->generalFjpStatus((string) $event->fjp->status)
+            : $event->status->value;
+        $displayStatusLabel = $canViewFjp && $event->fjp
+            ? $this->fjpStatusLabel((string) $event->fjp->status)
+            : $event->status->label();
 
         return Inertia::render('Events/Show', [
             'event' => [
@@ -264,12 +546,20 @@ class EventController extends Controller
                 'jug_required' => $event->jug_required,
                 'status' => $event->status->value,
                 'status_label' => $event->status->label(),
+                'display_status' => $displayStatus,
+                'display_status_label' => $displayStatusLabel,
                 'pic' => $event->pic?->name,
             ],
-            'readiness' => $ready,
+            'readiness' => [
+                'modules' => [
+                    'team' => $ready['modules']['team'],
+                ],
+            ],
             'fjp' => $canViewFjp ? ($event->fjp ? [
                 'id' => $event->fjp->id,
                 'fjp_number' => $event->fjp->fjp_number,
+                'status' => $this->generalFjpStatus((string) $event->fjp->status),
+                'status_label' => $this->fjpStatusLabel((string) $event->fjp->status),
                 'event_name' => $event->fjp->event_name,
                 'school_name' => $event->fjp->school_name,
                 'npsn' => $event->fjp->npsn,
@@ -308,6 +598,12 @@ class EventController extends Controller
                     'name' => $m->memberName(),
                     'position' => $m->position,
                     'user_id' => $m->user_id,
+                    'schedule_date' => $m->schedule_date?->toDateString(),
+                    'report_time' => $m->report_time,
+                    'start_time' => $m->start_time,
+                    'end_time' => $m->end_time,
+                    'task' => $m->task,
+                    'schedule_notes' => $m->schedule_notes,
                     'attendance' => $attendance ? [
                         'check_in_at' => $attendance->check_in_at?->toIso8601String(),
                         'check_out_at' => $attendance->check_out_at?->toIso8601String(),
@@ -359,15 +655,29 @@ class EventController extends Controller
                 'preparation_time' => $event->kitchenRequest->preparation_time,
                 'assignee' => $event->kitchenRequest->assignee?->name,
                 'notes' => $event->kitchenRequest->notes,
-                'reports' => $event->kitchenRequest->reports->map(fn (KitchenReport $r) => [
-                    'id' => $r->id,
-                    'prepared_quantity' => $r->prepared_quantity,
-                    'condition' => $r->condition,
-                    'notes' => $r->notes,
-                    'prepared_by' => $r->preparer?->name,
-                    'prepared_at' => $r->prepared_at?->toIso8601String(),
-                    'photo_url' => $r->photo_path ? route('kitchen.reports.photo', $r->id) : null,
-                ])->values(),
+                'reports' => $event->kitchenRequest->reports->map(function (KitchenReport $r) {
+                    $media = $r->media->groupBy('type');
+
+                    return [
+                        'id' => $r->id,
+                        'prepared_quantity' => $r->prepared_quantity,
+                        'condition' => $r->condition,
+                        'notes' => $r->notes,
+                        'prepared_by' => $r->preparer?->name,
+                        'prepared_at' => $r->prepared_at?->toIso8601String(),
+                        'washing_at' => $r->washing_at?->toIso8601String(),
+                        'cooking_at' => $r->cooking_at?->toIso8601String(),
+                        'ready_at' => $r->ready_at?->toIso8601String(),
+                        'photo_url' => $r->photo_path ? route('kitchen.reports.photo', $r->id) : null,
+                        'washing_photo_url' => $r->washing_photo_path ? route('kitchen.reports.washing-photo', $r->id) : null,
+                        'ready_photo_url' => $r->ready_photo_path ? route('kitchen.reports.ready-photo', $r->id) : null,
+                        'media' => [
+                            'washing' => $this->kitchenMediaPayload($media->get('washing', collect())),
+                            'cooking' => $this->kitchenMediaPayload($media->get('cooking', collect())),
+                            'ready' => $this->kitchenMediaPayload($media->get('ready', collect())),
+                        ],
+                    ];
+                })->values(),
             ] : null) : null,
             'reports' => $event->reports->map(fn (EventReport $r) => [
                 'id' => $r->id,
@@ -407,6 +717,13 @@ class EventController extends Controller
             'transitions' => collect($event->status->allowedTransitions())
                 ->map(fn (EventStatus $s) => ['value' => $s->value, 'label' => $s->label()])
                 ->values(),
+            'fjpStatusOptions' => [
+                ['value' => Fjp::STATUS_PLAN, 'label' => 'Plan'],
+                ['value' => Fjp::STATUS_CONFIRM, 'label' => 'Confirm'],
+                ['value' => Fjp::STATUS_CANCEL, 'label' => 'Cancel'],
+                ['value' => Fjp::STATUS_RESCHEDULE, 'label' => 'Reschedule'],
+                ['value' => Fjp::STATUS_DONE, 'label' => 'Done'],
+            ],
             'assignmentPool' => [
                 'users' => $canAssignTeam
                     ? User::whereHas('roles', fn ($q) => $q->where('slug', 'team'))->get(['id', 'name'])
@@ -418,6 +735,7 @@ class EventController extends Controller
             'can' => [
                 'assign_team' => $canAssignTeam,
                 'manage' => $user->hasPermission('events.update'),
+                'update_fjp_status' => $user->hasPermission('fjp.status.update'),
                 'close' => $user->hasPermission('events.close'),
                 'verify' => $user->hasPermission('reports.verify'),
                 'revision' => $user->hasPermission('reports.revision'),
@@ -430,6 +748,28 @@ class EventController extends Controller
                 'view_audit' => $canViewAudit,
             ],
         ]);
+    }
+
+    private function generalFjpStatus(string $status): string
+    {
+        return match ($status) {
+            'draft', 'submitted', 'pending' => Fjp::STATUS_PLAN,
+            'approved' => Fjp::STATUS_CONFIRM,
+            'rejected', 'cancelled' => Fjp::STATUS_CANCEL,
+            default => $status,
+        };
+    }
+
+    private function fjpStatusLabel(string $status): string
+    {
+        return match ($this->generalFjpStatus($status)) {
+            Fjp::STATUS_PLAN => 'Plan',
+            Fjp::STATUS_CONFIRM => 'Confirm',
+            Fjp::STATUS_CANCEL => 'Cancel',
+            Fjp::STATUS_RESCHEDULE => 'Reschedule',
+            Fjp::STATUS_DONE => 'Done',
+            default => ucfirst($status),
+        };
     }
 
     /**
@@ -524,7 +864,7 @@ class EventController extends Controller
         $target = EventStatus::from($data['status']);
 
         if ($target === $event->status) {
-            return back();
+            return back()->with('info', 'Status event tidak berubah.');
         }
 
         if (! $event->status->canTransitionTo($target)) {
@@ -622,6 +962,7 @@ class EventController extends Controller
             'user_id' => ['nullable', 'required_without:personnel_id', 'exists:users,id'],
             'personnel_id' => ['nullable', 'required_without:user_id', 'exists:personnel,id'],
             'position' => ['required', 'string', 'max:50'],
+            ...$this->teamScheduleRules(),
         ]);
 
         $duplicate = $event->teamMembers()->where(function ($q) use ($data) {
@@ -643,6 +984,39 @@ class EventController extends Controller
         return back()->with('success', 'Anggota tim ditugaskan.')->with('member_id', $member->id);
     }
 
+    public function updateTeam(Request $request, Event $event, EventTeamMember $member)
+    {
+        $this->authorizeView($request, $event);
+        abort_unless($member->event_id === $event->id, 404);
+
+        $data = $request->validate([
+            'position' => ['sometimes', 'required', 'string', 'max:50'],
+            ...$this->teamScheduleRules(),
+        ]);
+
+        $member->update($data);
+
+        AuditLogger::log('UPDATE_TEAM_SCHEDULE', 'events', $event, null, [
+            'member_id' => $member->id,
+            ...$data,
+        ]);
+
+        return back()->with('success', 'Jadwal anggota tim diperbarui.');
+    }
+
+    /** @return array<string, array<int, string>> */
+    private function teamScheduleRules(): array
+    {
+        return [
+            'schedule_date' => ['nullable', 'date'],
+            'report_time' => ['nullable', 'date_format:H:i'],
+            'start_time' => ['nullable', 'date_format:H:i'],
+            'end_time' => ['nullable', 'date_format:H:i', 'after_or_equal:start_time'],
+            'task' => ['nullable', 'string', 'max:255'],
+            'schedule_notes' => ['nullable', 'string', 'max:1000'],
+        ];
+    }
+
     public function removeTeam(Request $request, Event $event, EventTeamMember $member)
     {
         $this->authorizeView($request, $event);
@@ -656,13 +1030,24 @@ class EventController extends Controller
 
     private function scopeForUser($query, $user): void
     {
-        if ($user->hasRole('pic') && ! $user->isSystemAdmin()) {
+        if ($user->hasRole('pic') && ! $user->hasFullAccess()) {
             $query->where('pic_id', $user->id);
         }
 
-        if ($user->hasRole('team') && ! $user->hasAnyRole(['pic', 'system_admin'])) {
+        if ($user->hasRole('team') && ! $user->hasFullAccess() && ! $user->hasRole('pic')) {
             $query->whereHas('teamMembers', fn ($q) => $q->where('user_id', $user->id));
         }
+    }
+
+    private function kitchenMediaPayload(Collection $media): array
+    {
+        return $media->map(fn ($item) => [
+            'id' => $item->id,
+            'type' => $item->type,
+            'url' => route('kitchen.reports.media', $item->id),
+            'original_name' => $item->original_name,
+            'size' => $item->size,
+        ])->values()->all();
     }
 
     private function authorizeView(Request $request, Event $event): void

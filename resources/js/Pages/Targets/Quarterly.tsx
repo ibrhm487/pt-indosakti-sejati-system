@@ -25,6 +25,9 @@ type BrandTarget = {
     target_cups: number;
     actual_cups: number;
     percentage: number;
+    target_shifts: number;
+    actual_shifts: number;
+    shift_percentage: number;
     is_configured: boolean;
 };
 
@@ -41,6 +44,7 @@ function EditTargetModal({
 }) {
     const { data, setData, put, processing, errors, reset } = useForm({
         target_cups: String(brand?.target_cups ?? 0),
+        target_shifts: String(brand?.target_shifts ?? 0),
         year,
         quarter,
     });
@@ -50,6 +54,7 @@ function EditTargetModal({
             reset();
             setData({
                 target_cups: String(brand.target_cups),
+                target_shifts: String(brand.target_shifts),
                 year,
                 quarter,
             });
@@ -74,7 +79,7 @@ function EditTargetModal({
             title="Atur Target Kuartal"
             description={
                 brand
-                    ? `Target cup brand ${brand.name} untuk kuartal yang dipilih.`
+                    ? `Target shift dan cups brand ${brand.name} untuk kuartal yang dipilih.`
                     : undefined
             }
             footer={
@@ -100,8 +105,21 @@ function EditTargetModal({
             }
         >
             <form id="edit-quarterly-target-form" onSubmit={submit}>
+                <Field label="Target Shift" error={errors.target_shifts}>
+                    <Input
+                        type="number"
+                        min={0}
+                        step={1}
+                        autoFocus
+                        value={data.target_shifts}
+                        onChange={(event) =>
+                            setData('target_shifts', event.target.value)
+                        }
+                        aria-invalid={Boolean(errors.target_shifts)}
+                    />
+                </Field>
                 <Field
-                    label="Target Cup"
+                    label="Target Cups"
                     error={errors.target_cups}
                 >
                     <Input
@@ -118,7 +136,8 @@ function EditTargetModal({
                 </Field>
                 <p className="text-xs text-muted">
                     Berlaku untuk Q{quarter} {year}. Realisasi saat ini{' '}
-                    {brand ? formatNumber(brand.actual_cups) : 0} cup.
+                    {brand ? formatNumber(brand.actual_shifts) : 0} shift dan{' '}
+                    {brand ? formatNumber(brand.actual_cups) : 0} cups, dihitung saat MRV keluar dari gudang.
                 </p>
             </form>
         </Modal>
@@ -154,7 +173,7 @@ export default function QuarterlyTargets({
             <Head title="Target Kuartal" />
             <PageHeader
                 title="Target Kuartal per Brand"
-                subtitle="Realisasi dihitung dari laporan event terverifikasi pada kuartal terpilih."
+                subtitle="Realisasi dihitung saat produk benar-benar keluar dari gudang melalui MRV."
             />
 
             <Card className="mb-4 p-4">
@@ -203,11 +222,9 @@ export default function QuarterlyTargets({
                         <THead>
                             <TR>
                                 <TH>Brand</TH>
-                                <TH className="text-right">
-                                    Realisasi Terverifikasi (cup)
-                                </TH>
+                                <TH className="text-right">Shift aktual / target</TH>
+                                <TH className="text-right">Cups aktual / target</TH>
                                 <TH className="text-right">Pencapaian</TH>
-                                <TH className="text-right">Target (cup)</TH>
                                 <TH className="w-20" />
                             </TR>
                         </THead>
@@ -230,7 +247,13 @@ export default function QuarterlyTargets({
                                             )}
                                         </TD>
                                         <TD className="text-right font-mono">
-                                            {formatNumber(brand.actual_cups)}
+                                            {formatNumber(brand.actual_shifts)} / {formatNumber(brand.target_shifts)}
+                                            <span className="block text-xs text-muted">
+                                                {brand.target_shifts > 0 ? `${brand.shift_percentage.toFixed(1)}%` : '—'}
+                                            </span>
+                                        </TD>
+                                        <TD className="text-right font-mono">
+                                            {formatNumber(brand.actual_cups)} / {formatNumber(brand.target_cups)}
                                         </TD>
                                         <TD className="min-w-40">
                                             <div className="flex items-center justify-end gap-2">
@@ -264,9 +287,6 @@ export default function QuarterlyTargets({
                                                         : '-'}
                                                 </span>
                                             </div>
-                                        </TD>
-                                        <TD className="text-right font-mono text-text">
-                                            {formatNumber(brand.target_cups)}
                                         </TD>
                                         <TD className="text-right">
                                             <Button
